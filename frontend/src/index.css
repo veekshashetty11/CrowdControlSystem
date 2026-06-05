@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-brand-bg text-slate-100 overflow-x-hidden font-sans;
+    background-image: 
+      radial-gradient(at 10% 20%, rgba(59, 130, 246, 0.05) 0px, transparent 50%),
+      radial-gradient(at 90% 80%, rgba(16, 185, 129, 0.03) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, rgba(239, 68, 68, 0.02) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+}
+
+/* Custom Scrollbar for Dashboard Console */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+/* Glassmorphism Styles */
+.glass-panel {
+  @apply bg-brand-surface/65 backdrop-blur-xl border border-slate-800/60 shadow-[0_4px_30px_rgba(0,0,0,0.4)];
+}
+
+.glass-panel-glow-blue {
+  @apply bg-brand-surface/65 backdrop-blur-xl border border-brand-blue/30 shadow-glow-blue;
+}
+
+.glass-panel-glow-green {
+  @apply bg-brand-surface/65 backdrop-blur-xl border border-brand-green/30 shadow-glow-green;
+}
+
+.glass-panel-glow-orange {
+  @apply bg-brand-surface/65 backdrop-blur-xl border border-brand-orange/30 shadow-glow-orange;
+}
+
+.glass-panel-glow-red {
+  @apply bg-brand-surface/65 backdrop-blur-xl border border-brand-red/30 shadow-glow-red;
+}
+
+/* React Flow custom panel style */
+.react-flow__pane {
+  background-color: transparent !important;
+}
+
+.react-flow__controls button {
+  background: rgba(17, 24, 39, 0.8) !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(51, 65, 85, 0.5) !important;
+  fill: #f1f5f9 !important;
+}
+
+.react-flow__controls button:hover {
+  background: rgba(59, 130, 246, 0.2) !important;
+}
