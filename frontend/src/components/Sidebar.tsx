@@ -8,10 +8,11 @@ import {
   Play, 
   Settings, 
   Zap,
-  GitFork 
+  GitFork,
+  Brain
 } from 'lucide-react';
 
-export type TabId = 'dashboard' | 'live-map' | 'heatmap' | 'crowd-analytics' | 'route-optimizer' | 'max-flow' | 'evacuation' | 'simulation' | 'settings';
+export type TabId = 'dashboard' | 'live-map' | 'heatmap' | 'crowd-analytics' | 'route-optimizer' | 'max-flow' | 'daa-insights' | 'evacuation' | 'simulation' | 'settings';
 
 interface SidebarProps {
   activeTab: TabId;
@@ -33,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isEva
     { id: 'crowd-analytics', label: 'Crowd Analytics', icon: BarChart3 },
     { id: 'route-optimizer', label: 'Route Optimizer', icon: Navigation },
     { id: 'max-flow', label: 'Max Flow Visualizer', icon: GitFork },
+    { id: 'daa-insights', label: 'DAA Insights', icon: Brain },
     { id: 'evacuation', label: 'Evacuation Center', icon: ShieldAlert },
     { id: 'simulation', label: 'Simulation Control', icon: Play },
     { id: 'settings', label: 'Settings', icon: Settings },

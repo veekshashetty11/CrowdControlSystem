@@ -75,7 +75,13 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     activeZones: 5,
     congestedAreas: 1,
     riskScore: 48,
+    riskLevel: 'MODERATE',
+    bottleneckCount: 0,
+    avgDensityRatio: 0.35,
+    maxFlowUtilization: 0.2,
+    stampedeProbability: 18,
   });
+  const prevRiskLevelRef = useRef<string>('MODERATE');
   const [routeSourceId, setRouteSourceId] = useState<string | null>(null);
   const [routeDestId, setRouteDestId] = useState<string | null>(null);
 
@@ -314,16 +320,60 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const activeZones = nodes.filter(n => n.currentDensity > 10).length;
     const congestedAreas = nodes.filter(n => (n.currentDensity / n.capacity) * 100 >= densityThreshold).length;
 
-    // Calculate dynamic risk score (based on percentage of congested nodes and total load)
-    const congestedRatio = congestedAreas / nodes.length;
+    // === STAMPEDE RISK PREDICTOR ===
+    // Component 1: Average density ratio across all non-exit nodes
+    const nonExitNodes = nodes.filter(n => n.type !== 'EMERGENCY_EXIT');
+    const avgDensityRatio = nonExitNodes.reduce((sum, n) => sum + (n.currentDensity / n.capacity), 0) / Math.max(nonExitNodes.length, 1);
+
+    // Component 2: Max flow utilization across all edges
+    const maxFlowUtilization = edges.reduce((max, e) => {
+      const util = e.capacity > 0 ? e.currentFlow / e.capacity : 0;
+      return Math.max(max, util);
+    }, 0);
+
+    // Component 3: Bottleneck count (edges >= 90% utilized)
+    const bottleneckCount = edges.filter(e => e.capacity > 0 && (e.currentFlow / e.capacity) >= 0.9).length;
+
+    // Composite risk score: weighted formula
+    const densityComponent = avgDensityRatio * 45;
+    const flowComponent = maxFlowUtilization * 35;
+    const bottleneckComponent = Math.min(bottleneckCount * 10, 20);
+    const riskScore = Math.round(Math.min(100, densityComponent + flowComponent + bottleneckComponent));
+
+    // Stampede probability: adjusted weighted score with peak load amplifier
     const peakLoad = Math.max(...nodes.map(n => n.currentDensity / n.capacity));
-    const riskScore = Math.round(Math.min(100, (congestedRatio * 50) + (peakLoad * 50)));
+    const stampedeProbability = Math.round(Math.min(100, riskScore * 0.6 + peakLoad * 40));
+
+    // Determine risk level
+    let riskLevel: 'SAFE' | 'MODERATE' | 'HIGH' | 'CRITICAL' = 'SAFE';
+    if (riskScore >= 80) riskLevel = 'CRITICAL';
+    else if (riskScore >= 60) riskLevel = 'HIGH';
+    else if (riskScore >= 35) riskLevel = 'MODERATE';
+
+    // Trigger early-warning alerts on risk level transitions
+    if (riskLevel !== prevRiskLevelRef.current) {
+      if (riskLevel === 'CRITICAL') {
+        addLog('CRITICAL', `🚨 STAMPEDE RISK CRITICAL! Score: ${riskScore}/100. Probability: ${stampedeProbability}%. Immediate evacuation recommended.`);
+      } else if (riskLevel === 'HIGH') {
+        addLog('WARNING', `⚠️ High stampede risk detected! Score: ${riskScore}/100. ${bottleneckCount} bottleneck(s) active. Monitor and prepare evacuation routes.`);
+      } else if (riskLevel === 'MODERATE' && prevRiskLevelRef.current !== 'SAFE') {
+        addLog('INFO', `✅ Stampede risk reduced to Moderate. Score: ${riskScore}/100. Situation stabilizing.`);
+      } else if (riskLevel === 'SAFE') {
+        addLog('INFO', `✅ Stampede risk cleared. Score: ${riskScore}/100. All zones within safe parameters.`);
+      }
+      prevRiskLevelRef.current = riskLevel;
+    }
 
     setStats({
       totalCrowd,
       activeZones,
       congestedAreas,
       riskScore,
+      riskLevel,
+      bottleneckCount,
+      avgDensityRatio: parseFloat(avgDensityRatio.toFixed(3)),
+      maxFlowUtilization: parseFloat(maxFlowUtilization.toFixed(3)),
+      stampedeProbability,
     });
 
     // Update edge weights dynamically (congestion-aware routing penalty)
@@ -340,11 +390,11 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return {
         ...edge,
         weight: edge.distance + penalty,
-        currentFlow: Math.round(edge.capacity * 0.15 * ratio) // Visual flow representation
+        currentFlow: Math.round(edge.capacity * 0.25 * ratio)
       };
     }));
 
-  }, [nodes, densityThreshold]);
+  }, [nodes, densityThreshold, edges]);
 
   return (
     <SimulationContext.Provider value={{

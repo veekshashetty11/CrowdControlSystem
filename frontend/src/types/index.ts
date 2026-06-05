@@ -42,6 +42,11 @@ export interface SimulationStats {
   activeZones: number;
   congestedAreas: number;
   riskScore: number; // Out of 100
+  riskLevel: RiskLevel;
+  bottleneckCount: number;
+  avgDensityRatio: number; // 0-1
+  maxFlowUtilization: number; // 0-1
+  stampedeProbability: number; // 0-100
 }
 
 export interface AStarStep {

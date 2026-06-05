@@ -5,8 +5,11 @@ import { GlassCard } from '../components/GlassCard';
 import { Zap, HelpCircle, AlertTriangle, ShieldCheck, Flame } from 'lucide-react';
 
 export const Heatmap: React.FC = () => {
-  const { nodes } = useSimulation();
+  const { nodes, stats } = useSimulation();
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+
+  const riskLevel = stats.riskLevel || 'SAFE';
+  const stampedeProbability = stats.stampedeProbability || 0;
 
   // Sort nodes alphabetically or by ID to ensure a stable vertical list
   const sortedNodes = [...nodes].sort((a, b) => a.id.localeCompare(b.id));
@@ -41,14 +44,48 @@ export const Heatmap: React.FC = () => {
       className="space-y-8 p-8 max-w-7xl mx-auto"
     >
       {/* Page Header */}
-      <div>
-        <h2 className="text-3xl font-extrabold tracking-tight text-white font-sans">
-          Crowd Density Heatmap
-        </h2>
-        <p className="text-sm text-slate-500 font-mono mt-1">
-          Detailed grid density levels mapped by venue locations.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-extrabold tracking-tight text-white font-sans">
+            Crowd Density Heatmap
+          </h2>
+          <p className="text-sm text-slate-500 font-mono mt-1">
+            Detailed grid density levels mapped by venue locations.
+          </p>
+        </div>
+        {/* Stampede Risk badge */}
+        <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border font-mono text-xs font-bold self-start ${
+          riskLevel === 'CRITICAL'
+            ? 'bg-brand-red/15 border-brand-red/40 text-brand-red animate-pulse shadow-glow-red'
+            : riskLevel === 'HIGH'
+            ? 'bg-brand-orange/15 border-brand-orange/40 text-brand-orange shadow-glow-orange'
+            : riskLevel === 'MODERATE'
+            ? 'bg-amber-400/15 border-amber-400/40 text-amber-400'
+            : 'bg-brand-green/10 border-brand-green/30 text-brand-green'
+        }`}>
+          <AlertTriangle className="w-3.5 h-3.5" />
+          Stampede Risk: {riskLevel} · {stampedeProbability}% probability
+        </div>
       </div>
+
+      {/* CRITICAL/HIGH Warning Banner */}
+      {(riskLevel === 'CRITICAL' || riskLevel === 'HIGH') && (
+        <div className={`flex items-center gap-3 p-4 rounded-xl border font-sans text-sm ${
+          riskLevel === 'CRITICAL'
+            ? 'bg-brand-red/10 border-brand-red/30 text-brand-red animate-pulse'
+            : 'bg-brand-orange/10 border-brand-orange/30 text-brand-orange'
+        }`}>
+          <Flame className="w-5 h-5 shrink-0" />
+          <div>
+            <span className="font-bold">{riskLevel === 'CRITICAL' ? '🚨 STAMPEDE DANGER' : '⚠️ HIGH RISK ALERT'}: </span>
+            <span className="text-[13px]">
+              {riskLevel === 'CRITICAL'
+                ? `Crowd density is critically high. Stampede probability: ${stampedeProbability}%. Activate emergency evacuation immediately.`
+                : `Crowd density is dangerously elevated. Score: ${stats.riskScore}/100. Prepare evacuation routes and reduce crowd ingress.`}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

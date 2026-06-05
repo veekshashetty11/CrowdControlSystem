@@ -376,6 +376,105 @@ export function runTopologicalSort(
 }
 
 // ----------------------------------------------------
+// DEPTH-FIRST SEARCH ALGORITHM
+// ----------------------------------------------------
+export interface DFSResult {
+  visitedOrder: string[];
+  executionTime: number;
+}
+
+export function runDFS(
+  nodes: VenueNode[],
+  edges: VenueEdge[],
+  sourceId: string
+): DFSResult {
+  const startTime = performance.now();
+  const visited = new Set<string>();
+  const order: string[] = [];
+
+  // Build adjacency list
+  const adjacency = new Map<string, string[]>();
+  nodes.forEach(n => adjacency.set(n.id, []));
+  edges.forEach(e => adjacency.get(e.source)?.push(e.target));
+
+  const dfsHelper = (u: string) => {
+    visited.add(u);
+    order.push(u);
+    const neighbors = adjacency.get(u) || [];
+    for (const v of neighbors) {
+      if (!visited.has(v)) {
+        dfsHelper(v);
+      }
+    }
+  };
+
+  if (adjacency.has(sourceId)) {
+    dfsHelper(sourceId);
+  }
+
+  const endTime = performance.now();
+  return {
+    visitedOrder: order,
+    executionTime: parseFloat((endTime - startTime).toFixed(3))
+  };
+}
+
+// ----------------------------------------------------
+// SEGMENT TREE DATA STRUCTURE (O(log n) range queries)
+// ----------------------------------------------------
+export class SegmentTree {
+  private tree: number[];
+  private n: number;
+
+  constructor(data: number[]) {
+    this.n = data.length;
+    this.tree = new Array(2 * this.n).fill(0);
+    this.build(data);
+  }
+
+  private build(data: number[]) {
+    for (let i = 0; i < this.n; i++) {
+      this.tree[this.n + i] = data[i];
+    }
+    for (let i = this.n - 1; i > 0; i--) {
+      this.tree[i] = this.tree[2 * i] + this.tree[2 * i + 1];
+    }
+  }
+
+  update(pos: number, value: number) {
+    pos += this.n;
+    this.tree[pos] = value;
+    while (pos > 1) {
+      pos = Math.floor(pos / 2);
+      this.tree[pos] = this.tree[2 * pos] + this.tree[2 * pos + 1];
+    }
+  }
+
+  // Inclusive range sum query [l, r]
+  query(l: number, r: number): number {
+    let sum = 0;
+    l += this.n;
+    r += this.n + 1;
+    while (l < r) {
+      if ((l & 1) === 1) { sum += this.tree[l]; l++; }
+      if ((r & 1) === 1) { r--; sum += this.tree[r]; }
+      l >>= 1;
+      r >>= 1;
+    }
+    return sum;
+  }
+
+  // Benchmark helper: build + query and return execution time
+  static benchmark(data: number[], queryL: number, queryR: number): { result: number; executionTime: number } {
+    const start = performance.now();
+    const st = new SegmentTree(data);
+    const result = st.query(queryL, queryR);
+    const end = performance.now();
+    return { result, executionTime: parseFloat((end - start).toFixed(3)) };
+  }
+}
+
+// ----------------------------------------------------
 // DETAILED A* PATHFINDING ALGORITHM (FOR DAA LEARNING MODE)
 // ----------------------------------------------------
 import type { AStarStep } from '../types';
