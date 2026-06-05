@@ -43,3 +43,26 @@ export interface SimulationStats {
   congestedAreas: number;
   riskScore: number; // Out of 100
 }
+
+export interface AStarStep {
+  currentNode: string | null;
+  openSet: { nodeId: string; g: number; h: number; f: number }[];
+  closedSet: string[];
+  gScores: Record<string, number>;
+  hScores: Record<string, number>;
+  fScores: Record<string, number>;
+  parentMap: Record<string, string>;
+  currentPath: string[];
+  description: string;
+}
+
+export interface MaxFlowStep {
+  stepNumber: number;
+  augmentingPath: string[] | null;
+  bottleneckCapacity: number;
+  residualCapacities: Record<string, Record<string, number>>;
+  currentFlows: Record<string, Record<string, number>>;
+  totalFlowSoFar: number;
+  description: string;
+}
+

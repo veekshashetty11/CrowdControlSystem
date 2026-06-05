@@ -13,6 +13,7 @@ import { EvacuationCenter } from './pages/EvacuationCenter';
 import { CrowdAnalytics } from './pages/CrowdAnalytics';
 import { SimulationControl } from './pages/SimulationControl';
 import { Settings } from './pages/Settings';
+import { MaxFlowVisualizer } from './pages/MaxFlowVisualizer';
 
 const pageVariants = {
   initial: { opacity: 0, x: 16 },
@@ -31,6 +32,7 @@ const AppContent: React.FC = () => {
       case 'heatmap':          return <Heatmap />;
       case 'crowd-analytics':  return <CrowdAnalytics />;
       case 'route-optimizer':  return <RouteOptimizer />;
+      case 'max-flow':         return <MaxFlowVisualizer />;
       case 'evacuation':       return <EvacuationCenter />;
       case 'simulation':       return <SimulationControl />;
       case 'settings':         return <Settings />;

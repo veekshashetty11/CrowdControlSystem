@@ -29,6 +29,10 @@ interface SimulationContextProps {
   injectCrowd: (nodeId: string, amount: number) => void;
   clearLogs: () => void;
   setActiveAlgorithm: (step: AlgorithmStep | null) => void;
+  routeSourceId: string | null;
+  routeDestId: string | null;
+  setRouteSourceId: (id: string | null) => void;
+  setRouteDestId: (id: string | null) => void;
 }
 
 const SimulationContext = createContext<SimulationContextProps | undefined>(undefined);
@@ -72,6 +76,8 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     congestedAreas: 1,
     riskScore: 48,
   });
+  const [routeSourceId, setRouteSourceId] = useState<string | null>(null);
+  const [routeDestId, setRouteDestId] = useState<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -101,6 +107,8 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setSelectedPath([]);
     setSelectedNodeId(null);
     setActiveAlgorithm(null);
+    setRouteSourceId(null);
+    setRouteDestId(null);
     setLogs([
       { id: Math.random().toString(), timestamp: new Date().toLocaleTimeString(), level: 'INFO', message: 'Simulation reset to default parameters.' }
     ]);
@@ -118,6 +126,8 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Run Route Optimization (A* Search)
   const calculateRoute = (sourceId: string, destId: string): string[] => {
+    setRouteSourceId(sourceId);
+    setRouteDestId(destId);
     addLog('INFO', `Executing A* Pathfinding from ${sourceId} to ${destId}...`);
     
     // Simulate algorithm step-by-step delay for panel
@@ -192,7 +202,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     if (!isRunning) return;
 
-    const intervalTime = 2000 / simulationSpeed;
+    const intervalTime = 3000 / simulationSpeed;
 
     timerRef.current = setInterval(() => {
       setNodes(prevNodes => {
@@ -242,6 +252,14 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           }
         });
 
+        // 4. Realistic random fluctuations
+        nextNodes.forEach(node => {
+          if (node.type !== 'EMERGENCY_EXIT') {
+            const fluctuation = (Math.random() - 0.5) * 12 * crowdSizeMultiplier; // -6 to +6 people
+            node.currentDensity = parseFloat(Math.max(0, Math.min(node.capacity, node.currentDensity + fluctuation)).toFixed(1));
+          }
+        });
+
         // Check for anomalies to log
         nextNodes.forEach(node => {
           const densityRatio = node.currentDensity / node.capacity;
@@ -257,6 +275,30 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           }
         });
 
+        // 5. Automatic Congestion Rerouting Check
+        if (routeSourceId && routeDestId && selectedPath.length > 0) {
+          const threshDecimal = densityThreshold / 100;
+          const isCongested = selectedPath.some(nodeId => {
+            const n = nextNodes.find(x => x.id === nodeId);
+            return n && (n.currentDensity / n.capacity) >= threshDecimal;
+          });
+
+          if (isCongested) {
+            // Recompute congestion-aware shortest path
+            const res = findSafestPathAStar(nextNodes, edges, routeSourceId, routeDestId);
+            if (res.path.length > 0) {
+              const oldPathStr = selectedPath.join('->');
+              const newPathStr = res.path.join('->');
+              if (oldPathStr !== newPathStr) {
+                setTimeout(() => {
+                  setSelectedPath(res.path);
+                  addLog('WARNING', `🔄 Auto-Reroute Triggered: Path congestion exceeded threshold. Recomputed safest path: ${res.path.join(' ➔ ')}`);
+                }, 0);
+              }
+            }
+          }
+        }
+
         return nextNodes;
       });
     }, intervalTime);
@@ -264,7 +306,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isRunning, isEvacuationActive, edges, simulationSpeed, crowdSizeMultiplier, densityThreshold]);
+  }, [isRunning, isEvacuationActive, edges, simulationSpeed, crowdSizeMultiplier, densityThreshold, routeSourceId, routeDestId, selectedPath]);
 
   // Recalculate global stats and edge dynamic weights whenever nodes density updates
   useEffect(() => {
@@ -332,6 +374,10 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       injectCrowd,
       clearLogs,
       setActiveAlgorithm,
+      routeSourceId,
+      routeDestId,
+      setRouteSourceId,
+      setRouteDestId,
     }}>
       {children}
     </SimulationContext.Provider>
