@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Bell, Cpu, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Bell, Cpu, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { useSimulation } from '../context/SimulationContext';
 
 export const Header: React.FC = () => {
@@ -21,18 +21,7 @@ export const Header: React.FC = () => {
     <header className={`h-20 border-b flex items-center justify-between px-8 z-20 sticky top-0 bg-brand-bg/80 backdrop-blur-md transition-colors duration-500 ${
       isEvacuationActive ? 'border-brand-red/30 shadow-[0_4px_20px_rgba(239,68,68,0.05)]' : 'border-slate-800/60'
     }`}>
-      {/* Search Bar */}
       <div className="flex items-center space-x-4">
-        <div className="relative w-80">
-          <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-            <Search className="w-4 h-4 text-slate-500" />
-          </span>
-          <input
-            type="text"
-            placeholder="Search zones, exits, routes..."
-            className="w-full bg-slate-900/60 text-sm rounded-xl pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 border border-slate-800/80 focus:outline-none focus:border-brand-blue/60 focus:ring-1 focus:ring-brand-blue/30 transition-all font-sans"
-          />
-        </div>
 
         {/* Active Algorithm Badge */}
         {activeAlgorithm ? (

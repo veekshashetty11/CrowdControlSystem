@@ -1,6 +1,8 @@
 #include "visualization/HeatmapGenerator.h"
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
+#include <cmath>
 
 namespace EvacuGraph {
 

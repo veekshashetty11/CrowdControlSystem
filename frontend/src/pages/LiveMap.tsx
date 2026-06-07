@@ -16,7 +16,7 @@ import {
 import type { EdgeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useSimulation } from '../context/SimulationContext';
-import { MapPin, Users, Flame, Info, AlertTriangle, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { MapPin, Users, Flame, Info, AlertTriangle, ZoomIn, ZoomOut, Maximize2, LogIn, LogOut, ArrowRightLeft, LayoutDashboard } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
 // CUSTOM NODE COMPONENT
@@ -32,59 +32,93 @@ const CustomVenueNode = ({ data }: { data: Record<string, unknown> }) => {
 
   const ratio = currentDensity / capacity;
 
-  let riskColor = 'border-brand-green/45 bg-slate-900/90 shadow-[0_0_10px_rgba(16,185,129,0.15)] text-brand-green';
+  let riskColor = 'border-slate-800/80 bg-slate-950/85 text-slate-400';
   let barColor = 'bg-brand-green';
+  let stripColor = 'bg-brand-green';
 
   if (ratio >= 0.9) {
-    riskColor = 'border-brand-red bg-slate-900/95 shadow-glow-red text-brand-red animate-pulse';
-    barColor = 'bg-brand-red';
+    riskColor = 'border-brand-red/60 bg-slate-950/90 text-brand-red shadow-[0_0_12px_rgba(239,68,68,0.25)] animate-pulse';
+    barColor = 'bg-brand-red shadow-[0_0_8px_rgba(239,68,68,0.5)]';
+    stripColor = 'bg-brand-red';
   } else if (ratio >= 0.7) {
-    riskColor = 'border-brand-orange bg-slate-900/90 shadow-glow-orange text-brand-orange';
-    barColor = 'bg-brand-orange';
+    riskColor = 'border-brand-orange/50 bg-slate-950/85 text-brand-orange shadow-[0_0_10px_rgba(245,158,11,0.2)]';
+    barColor = 'bg-brand-orange shadow-[0_0_8px_rgba(245,158,11,0.5)]';
+    stripColor = 'bg-brand-orange';
   } else if (ratio >= 0.5) {
-    riskColor = 'border-amber-500/50 bg-slate-900/90 shadow-[0_0_10px_rgba(245,158,11,0.25)] text-amber-500';
+    riskColor = 'border-amber-500/40 bg-slate-950/85 text-amber-500';
     barColor = 'bg-amber-500';
+    stripColor = 'bg-amber-500';
+  } else {
+    riskColor = 'border-brand-green/40 bg-slate-950/85 text-brand-green';
+    barColor = 'bg-brand-green';
+    stripColor = 'bg-brand-green';
   }
 
-  // Emergency path glow overlay
-  const pathOutline = isOnPath
-    ? 'ring-2 ring-brand-blue ring-offset-1 ring-offset-slate-950 shadow-glow-blue scale-[1.04]'
-    : '';
+  // Active path / select highlights
+  let highlightClass = '';
+  if (isOnPath) {
+    highlightClass = 'ring-2 ring-brand-blue ring-offset-2 ring-offset-slate-950 shadow-[0_0_20px_rgba(59,130,246,0.4)] scale-[1.03] border-brand-blue/80';
+  } else if (isSelected) {
+    highlightClass = 'ring-2 ring-brand-blue/50 ring-offset-1 ring-offset-slate-950 scale-[1.02] border-brand-blue/60';
+  }
 
-  const selectOutline = isSelected
-    ? 'ring-2 ring-brand-blue ring-offset-2 ring-offset-brand-bg scale-[1.03]'
-    : 'hover:scale-[1.01]';
+  // Node type icon selector
+  const getNodeIcon = () => {
+    switch (type) {
+      case 'ENTRY_GATE':
+        return <LogIn className="w-3.5 h-3.5 opacity-80" />;
+      case 'EMERGENCY_EXIT':
+        return <LogOut className="w-3.5 h-3.5 opacity-80" />;
+      case 'CORRIDOR':
+        return <ArrowRightLeft className="w-3.5 h-3.5 opacity-80" />;
+      case 'HALL':
+      default:
+        return <LayoutDashboard className="w-3.5 h-3.5 opacity-80" />;
+    }
+  };
 
-  // Risk zone badge
+  // Risk zone badge styling
   const riskBadge: Record<string, string> = {
-    CRITICAL: 'bg-brand-red/20 text-brand-red border-brand-red/30',
-    HIGH: 'bg-brand-orange/20 text-brand-orange border-brand-orange/30',
-    MODERATE: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-    SAFE: 'bg-brand-green/15 text-brand-green border-brand-green/25',
+    CRITICAL: 'bg-brand-red/10 text-brand-red border-brand-red/20',
+    HIGH: 'bg-brand-orange/10 text-brand-orange border-brand-orange/20',
+    MODERATE: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    SAFE: 'bg-brand-green/10 text-brand-green border-brand-green/20',
   };
 
   return (
-    <div className={`px-4 py-2.5 rounded-xl border text-left min-w-[185px] backdrop-blur-md transition-all duration-300 ${riskColor} ${pathOutline || selectOutline}`}>
-      <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
-      <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
+    <div className={`pl-4 pr-5 py-3.5 rounded-2xl border text-left min-w-[200px] backdrop-blur-md transition-all duration-355 hover:border-slate-600 hover:scale-[1.01] relative overflow-hidden ${riskColor} ${highlightClass}`}>
+      {/* Handle terminals */}
+      <Handle type="target" position={Position.Left} style={{ width: 6, height: 6, background: '#3b82f6', border: '1px solid #0f172a', opacity: 0 }} />
+      <Handle type="source" position={Position.Right} style={{ width: 6, height: 6, background: '#3b82f6', border: '1px solid #0f172a', opacity: 0 }} />
 
-      <div className="flex items-start justify-between mb-1">
-        <div className="text-[9px] uppercase tracking-wider font-mono opacity-50">{type.replace(/_/g, ' ')}</div>
-        {riskLevel && riskLevel !== 'SAFE' && (
-          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded border font-mono ${riskBadge[riskLevel] || ''}`}>
+      {/* Decorative Left strip */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${stripColor}`} />
+
+      {/* Header telemetry details */}
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center space-x-1.5 text-slate-400 font-mono text-[9px] uppercase tracking-wider font-semibold">
+          {getNodeIcon()}
+          <span>{type.replace(/_/g, ' ')}</span>
+        </div>
+        {riskLevel && (
+          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-md border font-mono ${riskBadge[riskLevel] || ''}`}>
             {riskLevel}
           </span>
         )}
       </div>
 
-      <div className="text-xs font-bold text-slate-100 font-sans tracking-tight truncate max-w-[160px]">{name}</div>
+      {/* Node label */}
+      <div className="text-xs font-bold text-slate-100 font-sans tracking-tight truncate max-w-[170px]">
+        {name}
+      </div>
 
-      <div className="mt-2.5">
-        <div className="flex justify-between text-[9px] font-mono text-slate-400 mb-0.5">
-          <span>Density</span>
+      {/* Stats bar */}
+      <div className="mt-3">
+        <div className="flex justify-between text-[9px] font-mono text-slate-450 mb-1">
+          <span>DENSITY DATA</span>
           <span className="font-semibold text-slate-200">{Math.round(currentDensity)}/{capacity}</span>
         </div>
-        <div className="w-full bg-slate-950/80 rounded-full h-1.5 border border-slate-800/20 overflow-hidden">
+        <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800/40">
           <div
             className={`h-full rounded-full transition-all duration-500 ${barColor}`}
             style={{ width: `${Math.min(100, ratio * 100)}%` }}
@@ -103,9 +137,27 @@ const CustomAnimatedEdge: React.FC<EdgeProps> = ({
   sourcePosition, targetPosition,
   style, markerEnd, data,
 }) => {
+  const hasReverse = (data?.hasReverse as boolean) || false;
+  const sourceId = (data?.sourceId as string) || '';
+  const targetId = (data?.targetId as string) || '';
+
+  let sY = sourceY;
+  let tY = targetY;
+
+  if (hasReverse) {
+    const isSourceFirst = sourceId < targetId;
+    const offset = isSourceFirst ? -12 : 12;
+    sY += offset;
+    tY += offset;
+  }
+
   const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX, sourceY, sourcePosition,
-    targetX, targetY, targetPosition,
+    sourceX,
+    sourceY: sY,
+    sourcePosition,
+    targetX,
+    targetY: tY,
+    targetPosition,
   });
 
   const flowRate = (data?.flowRate as number) || 0;
@@ -121,21 +173,33 @@ const CustomAnimatedEdge: React.FC<EdgeProps> = ({
 
   return (
     <>
+      {/* Background glow path (neon tube overlay) */}
+      {(isOnPath || isEmergency) && (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke={particleColor}
+          strokeWidth={style?.strokeWidth ? Number(style.strokeWidth) + 3.5 : 5.5}
+          opacity="0.15"
+          style={{ filter: 'blur(3px)' }}
+        />
+      )}
+
       <BaseEdge path={edgePath} style={style} markerEnd={markerEnd} />
 
       {/* Animated crowd particles */}
       {showParticles && (
         <>
-          <circle r="3.5" fill={particleColor} opacity="0.9" style={{ filter: `drop-shadow(0 0 4px ${particleColor})` }}>
+          <circle r="3.5" fill={particleColor} opacity="0.95" style={{ filter: `drop-shadow(0 0 5px ${particleColor})` }}>
             <animateMotion dur={`${particleDuration}s`} repeatCount="indefinite" path={edgePath} />
           </circle>
           {utilization > 0.4 && (
-            <circle r="2.5" fill={particleColor} opacity="0.6">
+            <circle r="2.5" fill={particleColor} opacity="0.65" style={{ filter: `drop-shadow(0 0 4px ${particleColor})` }}>
               <animateMotion dur={`${particleDuration * 1.4}s`} repeatCount="indefinite" begin={`${particleDuration * 0.5}s`} path={edgePath} />
             </circle>
           )}
           {utilization > 0.7 && (
-            <circle r="2" fill={particleColor} opacity="0.4">
+            <circle r="2" fill={particleColor} opacity="0.45" style={{ filter: `drop-shadow(0 0 3px ${particleColor})` }}>
               <animateMotion dur={`${particleDuration * 0.8}s`} repeatCount="indefinite" begin={`${particleDuration * 0.25}s`} path={edgePath} />
             </circle>
           )}
@@ -152,9 +216,9 @@ const CustomAnimatedEdge: React.FC<EdgeProps> = ({
           }}
           className="nodrag nopan"
         >
-          <div className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold border backdrop-blur-sm ${
+          <div className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold border backdrop-blur-sm shadow-sm ${
             utilization >= 0.9
-              ? 'bg-brand-red/20 text-brand-red border-brand-red/30'
+              ? 'bg-brand-red/20 text-brand-red border-brand-red/30 shadow-[0_0_8px_rgba(239,68,68,0.2)]'
               : utilization >= 0.6
               ? 'bg-brand-orange/15 text-brand-orange border-brand-orange/25'
               : 'bg-slate-950/80 text-slate-400 border-slate-800/60'
@@ -176,24 +240,24 @@ const edgeTypes = { animatedCrowd: CustomAnimatedEdge };
 const ZoomControls: React.FC = () => {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   return (
-    <div className="absolute top-4 right-4 z-10 flex flex-col gap-1.5">
+    <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
       <button
         onClick={() => zoomIn()}
-        className="p-2 glass-panel border-slate-800/60 rounded-xl text-slate-400 hover:text-white hover:border-brand-blue/40 transition-all"
+        className="p-2.5 bg-slate-950/90 border border-slate-800/80 rounded-xl text-slate-400 hover:text-brand-blue hover:border-brand-blue/40 hover:shadow-[0_0_8px_rgba(59,130,246,0.3)] transition-all duration-205"
         title="Zoom In"
       >
         <ZoomIn className="w-4 h-4" />
       </button>
       <button
         onClick={() => zoomOut()}
-        className="p-2 glass-panel border-slate-800/60 rounded-xl text-slate-400 hover:text-white hover:border-brand-blue/40 transition-all"
+        className="p-2.5 bg-slate-950/90 border border-slate-800/80 rounded-xl text-slate-400 hover:text-brand-blue hover:border-brand-blue/40 hover:shadow-[0_0_8px_rgba(59,130,246,0.3)] transition-all duration-205"
         title="Zoom Out"
       >
         <ZoomOut className="w-4 h-4" />
       </button>
       <button
-        onClick={() => fitView({ padding: 0.15, duration: 400 })}
-        className="p-2 glass-panel border-slate-800/60 rounded-xl text-slate-400 hover:text-white hover:border-brand-blue/40 transition-all"
+        onClick={() => fitView({ padding: 0.15, duration: 450 })}
+        className="p-2.5 bg-slate-950/90 border border-slate-800/80 rounded-xl text-slate-400 hover:text-brand-blue hover:border-brand-blue/40 hover:shadow-[0_0_8px_rgba(59,130,246,0.3)] transition-all duration-205"
         title="Fit View"
       >
         <Maximize2 className="w-4 h-4" />
@@ -260,6 +324,9 @@ const LiveMapInner: React.FC = () => {
 
       const strokeW = isOnSelectedPath || isEvacuationActive ? 3.5 : 1.5;
 
+      // Check if there is an edge in the reverse direction
+      const hasReverse = edges.some(e => e.source === edge.target && e.target === edge.source);
+
       return {
         id: edge.id,
         source: edge.source,
@@ -286,6 +353,9 @@ const LiveMapInner: React.FC = () => {
           isEmergency: isEvacuationActive,
           isOnPath: isOnSelectedPath,
           isRunning,
+          hasReverse,
+          sourceId: edge.source,
+          targetId: edge.target,
         },
       };
     });
@@ -305,7 +375,13 @@ const LiveMapInner: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-80px)] w-full">
       {/* React Flow Panel */}
-      <div className="flex-1 h-full relative">
+      <div className="flex-1 h-full relative bg-[#090d16]">
+        {/* Neon sci-fi ambient glow background overlay */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.08),transparent_65%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.04),transparent_60%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(239,68,68,0.03),transparent_50%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(30,41,59,0.15)_1px,transparent_1px),linear-gradient(90deg,rgba(30,41,59,0.15)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+
         <ReactFlow
           nodes={flowNodes}
           edges={flowEdges}
@@ -318,8 +394,9 @@ const LiveMapInner: React.FC = () => {
           minZoom={0.25}
           maxZoom={2}
         >
-          <Background color="#1e293b" gap={20} size={1} />
-          <Controls showInteractive={false} className="!bg-slate-900/80 !border-slate-800 !rounded-xl" />
+          {/* Transparent grid overlay */}
+          <Background color="#1e293b" gap={24} size={1} style={{ opacity: 0.3 }} />
+          <Controls showInteractive={false} className="!bg-slate-950/90 !border-slate-800/80 !rounded-2xl !shadow-2xl" />
           <MiniMap
             nodeColor={(node) => {
               const d = node.data as Record<string, unknown>;
@@ -329,8 +406,8 @@ const LiveMapInner: React.FC = () => {
               if (rl === 'MODERATE') return '#F59E0B';
               return '#10B981';
             }}
-            maskColor="rgba(2,6,23,0.75)"
-            className="!bg-slate-950/90 !border !border-slate-800 !rounded-xl"
+            maskColor="rgba(3,7,18,0.85)"
+            className="!bg-slate-950/95 !border !border-slate-800/80 !rounded-2xl !shadow-2xl"
             style={{ bottom: 16, right: 16 }}
           />
           <ZoomControls />

@@ -105,8 +105,8 @@ export const CrowdAnalytics: React.FC = () => {
                 <YAxis stroke="#475569" fontSize={10} tickLine={false} />
                 <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px' }} labelClassName="text-slate-400 font-mono text-xs" />
                 <Legend wrapperStyle={{ fontSize: 10, fontFamily: 'monospace' }} />
-                <Area type="monotone" dataKey="Gate_A" stroke="#3B82F6" fillOpacity={1} fill="url(#colorGate)" />
-                <Area type="monotone" dataKey="Hall_1" stroke="#EF4444" fillOpacity={1} fill="url(#colorHall)" />
+                <Area type="monotone" dataKey="Gate_A" stroke="#3B82F6" fillOpacity={1} fill="url(#colorGate)" isAnimationActive={false} />
+                <Area type="monotone" dataKey="Hall_1" stroke="#EF4444" fillOpacity={1} fill="url(#colorHall)" isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -124,7 +124,7 @@ export const CrowdAnalytics: React.FC = () => {
                 <XAxis dataKey="cycle" stroke="#475569" fontSize={10} tickLine={false} />
                 <YAxis stroke="#475569" fontSize={10} tickLine={false} />
                 <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px' }} labelClassName="text-slate-400 font-mono text-xs" />
-                <Line type="monotone" dataKey="risk" stroke="#F59E0B" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="risk" stroke="#F59E0B" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -148,6 +148,7 @@ export const CrowdAnalytics: React.FC = () => {
                     outerRadius={80}
                     paddingAngle={4}
                     dataKey="value"
+                    isAnimationActive={false}
                   >
                     {exitUtilization.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -184,8 +185,8 @@ export const CrowdAnalytics: React.FC = () => {
                 <YAxis stroke="#475569" fontSize={10} tickLine={false} />
                 <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px' }} />
                 <Legend wrapperStyle={{ fontSize: 10, fontFamily: 'monospace' }} />
-                <Bar dataKey="time" name="Traversal Time (s)" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="risk" name="Avg Congestion Risk (%)" fill="#EF4444" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="time" name="Traversal Time (s)" fill="#3B82F6" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="risk" name="Avg Congestion Risk (%)" fill="#EF4444" radius={[4, 4, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>

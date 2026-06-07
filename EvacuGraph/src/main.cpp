@@ -55,42 +55,145 @@ int main() {
     auto venueGraph = std::make_shared<Graph>();
 
     // Add Nodes (Entry gates, halls, corridors, exits)
-    auto gateA = std::make_shared<Node>("Gate_A", "Gate A Entrance", NodeType::ENTRY_GATE, 500.0, 10.0, 100.0);
-    auto gateB = std::make_shared<Node>("Gate_B", "Gate B Entrance", NodeType::ENTRY_GATE, 500.0, 10.0, 10.0);
-    auto hall1 = std::make_shared<Node>("Hall_1", "Main Hall 1", NodeType::HALL, 1000.0, 50.0, 80.0);
-    auto hall2 = std::make_shared<Node>("Hall_2", "Dining Hall 2", NodeType::HALL, 600.0, 50.0, 30.0);
-    auto corridor1 = std::make_shared<Node>("Corridor_1", "Central Corridor 1", NodeType::CORRIDOR, 300.0, 150.0, 50.0);
-    auto exitA = std::make_shared<Node>("Exit_A", "Emergency Exit A", NodeType::EMERGENCY_EXIT, 800.0, 200.0, 80.0);
-    auto exitB = std::make_shared<Node>("Exit_B", "Emergency Exit B", NodeType::EMERGENCY_EXIT, 800.0, 200.0, 20.0);
+    auto gateA = std::make_shared<Node>("Gate_A", "Gate A Entrance", NodeType::ENTRY_GATE, 500.0, 100.0, 100.0);
+    auto gateB = std::make_shared<Node>("Gate_B", "Gate B Entrance", NodeType::ENTRY_GATE, 500.0, 100.0, 450.0);
+    auto gateC = std::make_shared<Node>("Gate_C", "Gate C Entrance", NodeType::ENTRY_GATE, 500.0, 100.0, 800.0);
+    auto gateD = std::make_shared<Node>("Gate_D", "Gate D Entrance", NodeType::ENTRY_GATE, 500.0, 100.0, 1150.0);
+
+    auto hall1 = std::make_shared<Node>("Hall_1", "West Concourse 1", NodeType::HALL, 1000.0, 600.0, 275.0);
+    auto hall2 = std::make_shared<Node>("Hall_2", "West Concourse 2", NodeType::HALL, 600.0, 600.0, 625.0);
+    auto hall3 = std::make_shared<Node>("Hall_3", "West Concourse 3", NodeType::HALL, 700.0, 600.0, 975.0);
+
+    auto corridor1 = std::make_shared<Node>("Corridor_1", "Internal Corridor 1", NodeType::CORRIDOR, 300.0, 1100.0, 100.0);
+    auto corridor2 = std::make_shared<Node>("Corridor_2", "Internal Corridor 2", NodeType::CORRIDOR, 400.0, 1100.0, 450.0);
+    auto corridor3 = std::make_shared<Node>("Corridor_3", "Internal Corridor 3", NodeType::CORRIDOR, 350.0, 1100.0, 800.0);
+    auto corridor4 = std::make_shared<Node>("Corridor_4", "Internal Corridor 4", NodeType::CORRIDOR, 300.0, 1100.0, 1150.0);
+
+    auto hall4 = std::make_shared<Node>("Hall_4", "Main Exhibition Arena 4", NodeType::HALL, 1200.0, 1600.0, 275.0);
+    auto hall5 = std::make_shared<Node>("Hall_5", "Main Plaza 5", NodeType::HALL, 1000.0, 1600.0, 625.0);
+    auto hall6 = std::make_shared<Node>("Hall_6", "Main Pavilion 6", NodeType::HALL, 800.0, 1600.0, 975.0);
+
+    auto corridor5 = std::make_shared<Node>("Corridor_5", "Exit Corridor East 5", NodeType::CORRIDOR, 500.0, 2100.0, 450.0);
+    auto corridor6 = std::make_shared<Node>("Corridor_6", "Exit Corridor West 6", NodeType::CORRIDOR, 500.0, 2100.0, 800.0);
+
+    auto exitA = std::make_shared<Node>("Exit_A", "Emergency Exit A", NodeType::EMERGENCY_EXIT, 800.0, 2600.0, 100.0);
+    auto exitB = std::make_shared<Node>("Exit_B", "Emergency Exit B", NodeType::EMERGENCY_EXIT, 800.0, 2600.0, 450.0);
+    auto exitC = std::make_shared<Node>("Exit_C", "Emergency Exit C", NodeType::EMERGENCY_EXIT, 800.0, 2600.0, 800.0);
+    auto exitD = std::make_shared<Node>("Exit_D", "Emergency Exit D", NodeType::EMERGENCY_EXIT, 800.0, 2600.0, 1150.0);
 
     venueGraph->addNode(gateA);
     venueGraph->addNode(gateB);
+    venueGraph->addNode(gateC);
+    venueGraph->addNode(gateD);
     venueGraph->addNode(hall1);
     venueGraph->addNode(hall2);
+    venueGraph->addNode(hall3);
     venueGraph->addNode(corridor1);
+    venueGraph->addNode(corridor2);
+    venueGraph->addNode(corridor3);
+    venueGraph->addNode(corridor4);
+    venueGraph->addNode(hall4);
+    venueGraph->addNode(hall5);
+    venueGraph->addNode(hall6);
+    venueGraph->addNode(corridor5);
+    venueGraph->addNode(corridor6);
     venueGraph->addNode(exitA);
     venueGraph->addNode(exitB);
+    venueGraph->addNode(exitC);
+    venueGraph->addNode(exitD);
 
     // Add Edges representing pathways between locations
-    venueGraph->addEdge(std::make_shared<Edge>("E_GA_H1", gateA, hall1, 250.0, 45.0));
-    venueGraph->addEdge(std::make_shared<Edge>("E_GB_H2", gateB, hall2, 250.0, 45.0));
-    venueGraph->addEdge(std::make_shared<Edge>("E_H1_C1", hall1, corridor1, 500.0, 60.0));
-    venueGraph->addEdge(std::make_shared<Edge>("E_H2_C1", hall2, corridor1, 450.0, 60.0));
-    venueGraph->addEdge(std::make_shared<Edge>("E_C1_EA", corridor1, exitA, 250.0, 30.0));
-    venueGraph->addEdge(std::make_shared<Edge>("E_C1_EB", corridor1, exitB, 250.0, 30.0));
+    // Gate to Pre-Hall connections
+    venueGraph->addEdge(std::make_shared<Edge>("E_GA_H1", gateA, hall1, 250.0, 40.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_GB_H1", gateB, hall1, 250.0, 45.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_GB_H2", gateB, hall2, 200.0, 35.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_GC_H2", gateC, hall2, 250.0, 40.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_GC_H3", gateC, hall3, 200.0, 45.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_GD_H3", gateD, hall3, 250.0, 40.0));
+
+    // Pre-Hall to Gate connections (Reverse - Gates as exits)
+    venueGraph->addEdge(std::make_shared<Edge>("E_H1_GA", hall1, gateA, 250.0, 40.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H1_GB", hall1, gateB, 250.0, 45.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H2_GB", hall2, gateB, 200.0, 35.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H2_GC", hall2, gateC, 250.0, 40.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H3_GC", hall3, gateC, 200.0, 45.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H3_GD", hall3, gateD, 250.0, 40.0));
+
+    // Pre-Hall to Internal Corridor connections
+    venueGraph->addEdge(std::make_shared<Edge>("E_H1_C1", hall1, corridor1, 350.0, 50.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H1_C2", hall1, corridor2, 300.0, 55.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H2_C2", hall2, corridor2, 400.0, 45.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H2_C3", hall2, corridor3, 300.0, 50.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H3_C3", hall3, corridor3, 350.0, 55.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H3_C4", hall3, corridor4, 300.0, 50.0));
+
+    // Internal Corridor to Pre-Hall connections (Reverse)
+    venueGraph->addEdge(std::make_shared<Edge>("E_C1_H1", corridor1, hall1, 350.0, 50.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C2_H1", corridor2, hall1, 300.0, 55.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C2_H2", corridor2, hall2, 400.0, 45.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C3_H2", corridor3, hall2, 300.0, 50.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C3_H3", corridor3, hall3, 350.0, 55.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C4_H3", corridor4, hall3, 300.0, 50.0));
+
+    // Internal Corridor to Main Hall connections
+    venueGraph->addEdge(std::make_shared<Edge>("E_C1_H4", corridor1, hall4, 300.0, 50.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C2_H4", corridor2, hall4, 350.0, 45.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C2_H5", corridor2, hall5, 400.0, 50.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C3_H5", corridor3, hall5, 350.0, 45.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C3_H6", corridor3, hall6, 300.0, 50.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C4_H6", corridor4, hall6, 350.0, 55.0));
+
+    // Main Hall to Internal Corridor connections (Reverse)
+    venueGraph->addEdge(std::make_shared<Edge>("E_H4_C1", hall4, corridor1, 300.0, 50.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H4_C2", hall4, corridor2, 350.0, 45.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H5_C2", hall5, corridor2, 400.0, 50.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H5_C3", hall5, corridor3, 350.0, 45.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H6_C3", hall6, corridor3, 300.0, 50.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H6_C4", hall6, corridor4, 350.0, 55.0));
+
+    // Main Hall to External Corridor connections
+    venueGraph->addEdge(std::make_shared<Edge>("E_H4_C5", hall4, corridor5, 450.0, 60.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H5_C5", hall5, corridor5, 500.0, 50.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H5_C6", hall5, corridor6, 500.0, 55.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_H6_C6", hall6, corridor6, 450.0, 60.0));
+
+    // External Corridor to Main Hall connections (Reverse)
+    venueGraph->addEdge(std::make_shared<Edge>("E_C5_H4", corridor5, hall4, 450.0, 60.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C5_H5", corridor5, hall5, 500.0, 50.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C6_H5", corridor6, hall5, 500.0, 55.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C6_H6", corridor6, hall6, 450.0, 60.0));
+
+    // External Corridor to Exit connections
+    venueGraph->addEdge(std::make_shared<Edge>("E_C5_EA", corridor5, exitA, 250.0, 30.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C5_EB", corridor5, exitB, 300.0, 35.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C6_EC", corridor6, exitC, 300.0, 35.0));
+    venueGraph->addEdge(std::make_shared<Edge>("E_C6_ED", corridor6, exitD, 250.0, 30.0));
 
     // Default Initial Densities
     std::unordered_map<std::string, double> initialDensities = {
-        {"Gate_A",     120.0},
-        {"Gate_B",      40.0},
-        {"Hall_1",     950.0}, // Near capacity (95%)
-        {"Hall_2",     380.0}, 
-        {"Corridor_1",  20.0},
+        {"Gate_A",     150.0},
+        {"Gate_B",      80.0},
+        {"Gate_C",     200.0},
+        {"Gate_D",      50.0},
+        {"Hall_1",     850.0},
+        {"Hall_2",     420.0},
+        {"Hall_3",     310.0},
+        {"Corridor_1",  50.0},
+        {"Corridor_2", 120.0},
+        {"Corridor_3",  90.0},
+        {"Corridor_4",  30.0},
+        {"Hall_4",     920.0},
+        {"Hall_5",     680.0},
+        {"Hall_6",     500.0},
+        {"Corridor_5",  80.0},
+        {"Corridor_6",  40.0},
         {"Exit_A",       0.0},
-        {"Exit_B",       0.0}
+        {"Exit_B",       0.0},
+        {"Exit_C",       0.0},
+        {"Exit_D",       0.0}
     };
 
-    std::vector<std::string> simExits = {"Exit_A", "Exit_B"};
+    std::vector<std::string> simExits = {"Exit_A", "Exit_B", "Exit_C", "Exit_D", "Gate_A", "Gate_B", "Gate_C", "Gate_D"};
     auto simulator = std::make_shared<CrowdSimulator>(venueGraph, simExits, 42);
     simulator->initializeCrowdDistribution(initialDensities);
 
@@ -179,10 +282,13 @@ int main() {
                     std::cout << "  * No high or critical congestion detected in this cycle." << std::endl;
                 }
 
-                // Flow 6: Compute max flow
+                // Flow 6: Compute max flow (with gates acting as exits, internal rooms are the sources)
                 std::cout << "\033[1m[6. Compute Max Flow]\033[0m Checking max crowd throughput capacity..." << std::endl;
-                std::vector<std::string> entryGates = {"Gate_A", "Gate_B"};
-                MaxFlowResult flowRes = computeMaxFlow(venueGraph, entryGates, simExits);
+                std::vector<std::string> flowSources = {
+                    "Hall_1", "Hall_2", "Hall_3", "Hall_4", "Hall_5", "Hall_6",
+                    "Corridor_1", "Corridor_2", "Corridor_3", "Corridor_4"
+                };
+                MaxFlowResult flowRes = computeMaxFlow(venueGraph, flowSources, simExits);
                 std::cout << "  * Max evac throughput capacity: " << std::fixed << std::setprecision(1) 
                           << flowRes.maxFlow << " people/time-unit" << std::endl;
 
@@ -280,8 +386,11 @@ int main() {
             }
 
             // Edmonds-Karp Max Flow
-            std::vector<std::string> entryGates = {"Gate_A", "Gate_B"};
-            MaxFlowResult flowResult = computeMaxFlow(venueGraph, entryGates, simExits);
+            std::vector<std::string> flowSources = {
+                "Hall_1", "Hall_2", "Hall_3", "Hall_4", "Hall_5", "Hall_6",
+                "Corridor_1", "Corridor_2", "Corridor_3", "Corridor_4"
+            };
+            MaxFlowResult flowResult = computeMaxFlow(venueGraph, flowSources, simExits);
             std::cout << "\n\033[1m3. Maximum Evacuation Flow Capacity:\033[0m " 
                       << flowResult.maxFlow << " people/time-unit" << std::endl;
 

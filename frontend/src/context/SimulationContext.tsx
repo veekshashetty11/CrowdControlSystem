@@ -38,22 +38,105 @@ interface SimulationContextProps {
 const SimulationContext = createContext<SimulationContextProps | undefined>(undefined);
 
 const initialNodes: VenueNode[] = [
-  { id: 'Gate_A', name: 'Gate A Entrance', type: 'ENTRY_GATE', capacity: 500, currentDensity: 120, x: 150, y: 150 },
-  { id: 'Gate_B', name: 'Gate B Entrance', type: 'ENTRY_GATE', capacity: 500, currentDensity: 40, x: 150, y: 450 },
-  { id: 'Hall_1', name: 'Main Hall 1', type: 'HALL', capacity: 1000, currentDensity: 820, x: 400, y: 180 },
-  { id: 'Hall_2', name: 'Dining Hall 2', type: 'HALL', capacity: 600, currentDensity: 380, x: 400, y: 420 },
-  { id: 'Corridor_1', name: 'Central Corridor 1', type: 'CORRIDOR', capacity: 300, currentDensity: 20, x: 650, y: 300 },
-  { id: 'Exit_A', name: 'Emergency Exit A', type: 'EMERGENCY_EXIT', capacity: 800, currentDensity: 0, x: 900, y: 180 },
-  { id: 'Exit_B', name: 'Emergency Exit B', type: 'EMERGENCY_EXIT', capacity: 800, currentDensity: 0, x: 900, y: 420 },
+  // Layer 1: Gates
+  { id: 'Gate_A', name: 'Gate A Entrance', type: 'ENTRY_GATE', capacity: 500, currentDensity: 150, x: 100, y: 100 },
+  { id: 'Gate_B', name: 'Gate B Entrance', type: 'ENTRY_GATE', capacity: 500, currentDensity: 80, x: 100, y: 450 },
+  { id: 'Gate_C', name: 'Gate C Entrance', type: 'ENTRY_GATE', capacity: 500, currentDensity: 200, x: 100, y: 800 },
+  { id: 'Gate_D', name: 'Gate D Entrance', type: 'ENTRY_GATE', capacity: 500, currentDensity: 50, x: 100, y: 1150 },
+
+  // Layer 2: Pre-halls
+  { id: 'Hall_1', name: 'West Concourse 1', type: 'HALL', capacity: 1000, currentDensity: 850, x: 600, y: 275 },
+  { id: 'Hall_2', name: 'West Concourse 2', type: 'HALL', capacity: 600, currentDensity: 420, x: 600, y: 625 },
+  { id: 'Hall_3', name: 'West Concourse 3', type: 'HALL', capacity: 700, currentDensity: 310, x: 600, y: 975 },
+
+  // Layer 3: Internal Corridors
+  { id: 'Corridor_1', name: 'Internal Corridor 1', type: 'CORRIDOR', capacity: 300, currentDensity: 50, x: 1100, y: 100 },
+  { id: 'Corridor_2', name: 'Internal Corridor 2', type: 'CORRIDOR', capacity: 400, currentDensity: 120, x: 1100, y: 450 },
+  { id: 'Corridor_3', name: 'Internal Corridor 3', type: 'CORRIDOR', capacity: 350, currentDensity: 90, x: 1100, y: 800 },
+  { id: 'Corridor_4', name: 'Internal Corridor 4', type: 'CORRIDOR', capacity: 300, currentDensity: 30, x: 1100, y: 1150 },
+
+  // Layer 4: Main Halls / Arena
+  { id: 'Hall_4', name: 'Main Exhibition Arena 4', type: 'HALL', capacity: 1200, currentDensity: 920, x: 1600, y: 275 },
+  { id: 'Hall_5', name: 'Main Plaza 5', type: 'HALL', capacity: 1000, currentDensity: 680, x: 1600, y: 625 },
+  { id: 'Hall_6', name: 'Main Pavilion 6', type: 'HALL', capacity: 800, currentDensity: 500, x: 1600, y: 975 },
+
+  // Layer 5: Output Corridors
+  { id: 'Corridor_5', name: 'Exit Corridor East 5', type: 'CORRIDOR', capacity: 500, currentDensity: 80, x: 2100, y: 450 },
+  { id: 'Corridor_6', name: 'Exit Corridor West 6', type: 'CORRIDOR', capacity: 500, currentDensity: 40, x: 2100, y: 800 },
+
+  // Layer 6: Exits
+  { id: 'Exit_A', name: 'Emergency Exit A', type: 'EMERGENCY_EXIT', capacity: 800, currentDensity: 0, x: 2600, y: 100 },
+  { id: 'Exit_B', name: 'Emergency Exit B', type: 'EMERGENCY_EXIT', capacity: 800, currentDensity: 0, x: 2600, y: 450 },
+  { id: 'Exit_C', name: 'Emergency Exit C', type: 'EMERGENCY_EXIT', capacity: 800, currentDensity: 0, x: 2600, y: 800 },
+  { id: 'Exit_D', name: 'Emergency Exit D', type: 'EMERGENCY_EXIT', capacity: 800, currentDensity: 0, x: 2600, y: 1150 },
 ];
 
 const initialEdges: VenueEdge[] = [
-  { id: 'E_GA_H1', source: 'Gate_A', target: 'Hall_1', capacity: 250, distance: 45, currentFlow: 0, weight: 45 },
-  { id: 'E_GB_H2', source: 'Gate_B', target: 'Hall_2', capacity: 250, distance: 45, currentFlow: 0, weight: 45 },
-  { id: 'E_H1_C1', source: 'Hall_1', target: 'Corridor_1', capacity: 500, distance: 60, currentFlow: 0, weight: 60 },
-  { id: 'E_H2_C1', source: 'Hall_2', target: 'Corridor_1', capacity: 450, distance: 60, currentFlow: 0, weight: 60 },
-  { id: 'E_C1_EA', source: 'Corridor_1', target: 'Exit_A', capacity: 250, distance: 30, currentFlow: 0, weight: 30 },
-  { id: 'E_C1_EB', source: 'Corridor_1', target: 'Exit_B', capacity: 250, distance: 30, currentFlow: 0, weight: 30 },
+  // Gate to Pre-Hall connections
+  { id: 'E_GA_H1', source: 'Gate_A', target: 'Hall_1', capacity: 250, distance: 40, currentFlow: 0, weight: 40 },
+  { id: 'E_GB_H1', source: 'Gate_B', target: 'Hall_1', capacity: 250, distance: 45, currentFlow: 0, weight: 45 },
+  { id: 'E_GB_H2', source: 'Gate_B', target: 'Hall_2', capacity: 200, distance: 35, currentFlow: 0, weight: 35 },
+  { id: 'E_GC_H2', source: 'Gate_C', target: 'Hall_2', capacity: 250, distance: 40, currentFlow: 0, weight: 40 },
+  { id: 'E_GC_H3', source: 'Gate_C', target: 'Hall_3', capacity: 200, distance: 45, currentFlow: 0, weight: 45 },
+  { id: 'E_GD_H3', source: 'Gate_D', target: 'Hall_3', capacity: 250, distance: 40, currentFlow: 0, weight: 40 },
+
+  // Reverse: Pre-Hall to Gate connections (Gates as exits)
+  { id: 'E_H1_GA', source: 'Hall_1', target: 'Gate_A', capacity: 250, distance: 40, currentFlow: 0, weight: 40 },
+  { id: 'E_H1_GB', source: 'Hall_1', target: 'Gate_B', capacity: 250, distance: 45, currentFlow: 0, weight: 45 },
+  { id: 'E_H2_GB', source: 'Hall_2', target: 'Gate_B', capacity: 200, distance: 35, currentFlow: 0, weight: 35 },
+  { id: 'E_H2_GC', source: 'Hall_2', target: 'Gate_C', capacity: 250, distance: 40, currentFlow: 0, weight: 40 },
+  { id: 'E_H3_GC', source: 'Hall_3', target: 'Gate_C', capacity: 200, distance: 45, currentFlow: 0, weight: 45 },
+  { id: 'E_H3_GD', source: 'Hall_3', target: 'Gate_D', capacity: 250, distance: 40, currentFlow: 0, weight: 40 },
+
+  // Pre-Hall to Internal Corridor connections
+  { id: 'E_H1_C1', source: 'Hall_1', target: 'Corridor_1', capacity: 350, distance: 50, currentFlow: 0, weight: 50 },
+  { id: 'E_H1_C2', source: 'Hall_1', target: 'Corridor_2', capacity: 300, distance: 55, currentFlow: 0, weight: 55 },
+  { id: 'E_H2_C2', source: 'Hall_2', target: 'Corridor_2', capacity: 400, distance: 45, currentFlow: 0, weight: 45 },
+  { id: 'E_H2_C3', source: 'Hall_2', target: 'Corridor_3', capacity: 300, distance: 50, currentFlow: 0, weight: 50 },
+  { id: 'E_H3_C3', source: 'Hall_3', target: 'Corridor_3', capacity: 350, distance: 55, currentFlow: 0, weight: 55 },
+  { id: 'E_H3_C4', source: 'Hall_3', target: 'Corridor_4', capacity: 300, distance: 50, currentFlow: 0, weight: 50 },
+
+  // Reverse: Internal Corridor to Pre-Hall connections
+  { id: 'E_C1_H1', source: 'Corridor_1', target: 'Hall_1', capacity: 350, distance: 50, currentFlow: 0, weight: 50 },
+  { id: 'E_C2_H1', source: 'Corridor_2', target: 'Hall_1', capacity: 300, distance: 55, currentFlow: 0, weight: 55 },
+  { id: 'E_C2_H2', source: 'Corridor_2', target: 'Hall_2', capacity: 400, distance: 45, currentFlow: 0, weight: 45 },
+  { id: 'E_C3_H2', source: 'Corridor_3', target: 'Hall_2', capacity: 300, distance: 50, currentFlow: 0, weight: 50 },
+  { id: 'E_C3_H3', source: 'Corridor_3', target: 'Hall_3', capacity: 350, distance: 55, currentFlow: 0, weight: 55 },
+  { id: 'E_C4_H3', source: 'Corridor_4', target: 'Hall_3', capacity: 300, distance: 50, currentFlow: 0, weight: 50 },
+
+  // Internal Corridor to Main Hall connections
+  { id: 'E_C1_H4', source: 'Corridor_1', target: 'Hall_4', capacity: 300, distance: 50, currentFlow: 0, weight: 50 },
+  { id: 'E_C2_H4', source: 'Corridor_2', target: 'Hall_4', capacity: 350, distance: 45, currentFlow: 0, weight: 45 },
+  { id: 'E_C2_H5', source: 'Corridor_2', target: 'Hall_5', capacity: 400, distance: 50, currentFlow: 0, weight: 50 },
+  { id: 'E_C3_H5', source: 'Corridor_3', target: 'Hall_5', capacity: 350, distance: 45, currentFlow: 0, weight: 45 },
+  { id: 'E_C3_H6', source: 'Corridor_3', target: 'Hall_6', capacity: 300, distance: 50, currentFlow: 0, weight: 50 },
+  { id: 'E_C4_H6', source: 'Corridor_4', target: 'Hall_6', capacity: 350, distance: 55, currentFlow: 0, weight: 55 },
+
+  // Reverse: Main Hall to Internal Corridor connections
+  { id: 'E_H4_C1', source: 'Hall_4', target: 'Corridor_1', capacity: 300, distance: 50, currentFlow: 0, weight: 50 },
+  { id: 'E_H4_C2', source: 'Hall_4', target: 'Corridor_2', capacity: 350, distance: 45, currentFlow: 0, weight: 45 },
+  { id: 'E_H5_C2', source: 'Hall_5', target: 'Corridor_2', capacity: 400, distance: 50, currentFlow: 0, weight: 50 },
+  { id: 'E_H5_C3', source: 'Hall_5', target: 'Corridor_3', capacity: 350, distance: 45, currentFlow: 0, weight: 45 },
+  { id: 'E_H6_C3', source: 'Hall_6', target: 'Corridor_3', capacity: 300, distance: 50, currentFlow: 0, weight: 50 },
+  { id: 'E_H6_C4', source: 'Hall_6', target: 'Corridor_4', capacity: 350, distance: 55, currentFlow: 0, weight: 55 },
+
+  // Main Hall to External Corridor connections
+  { id: 'E_H4_C5', source: 'Hall_4', target: 'Corridor_5', capacity: 450, distance: 60, currentFlow: 0, weight: 60 },
+  { id: 'E_H5_C5', source: 'Hall_5', target: 'Corridor_5', capacity: 500, distance: 50, currentFlow: 0, weight: 50 },
+  { id: 'E_H5_C6', source: 'Hall_5', target: 'Corridor_6', capacity: 500, distance: 55, currentFlow: 0, weight: 55 },
+  { id: 'E_H6_C6', source: 'Hall_6', target: 'Corridor_6', capacity: 450, distance: 60, currentFlow: 0, weight: 60 },
+
+  // Reverse: External Corridor to Main Hall connections
+  { id: 'E_C5_H4', source: 'Corridor_5', target: 'Hall_4', capacity: 450, distance: 60, currentFlow: 0, weight: 60 },
+  { id: 'E_C5_H5', source: 'Corridor_5', target: 'Hall_5', capacity: 500, distance: 50, currentFlow: 0, weight: 50 },
+  { id: 'E_C6_H5', source: 'Corridor_6', target: 'Hall_5', capacity: 500, distance: 55, currentFlow: 0, weight: 55 },
+  { id: 'E_C6_H6', source: 'Corridor_6', target: 'Hall_6', capacity: 450, distance: 60, currentFlow: 0, weight: 60 },
+
+  // External Corridor to Exit connections
+  { id: 'E_C5_EA', source: 'Corridor_5', target: 'Exit_A', capacity: 250, distance: 30, currentFlow: 0, weight: 30 },
+  { id: 'E_C5_EB', source: 'Corridor_5', target: 'Exit_B', capacity: 300, distance: 35, currentFlow: 0, weight: 35 },
+  { id: 'E_C6_EC', source: 'Corridor_6', target: 'Exit_C', capacity: 300, distance: 35, currentFlow: 0, weight: 35 },
+  { id: 'E_C6_ED', source: 'Corridor_6', target: 'Exit_D', capacity: 250, distance: 30, currentFlow: 0, weight: 30 },
 ];
 
 export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -71,15 +154,15 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string[]>([]);
   const [stats, setStats] = useState<SimulationStats>({
-    totalCrowd: 1360,
-    activeZones: 5,
-    congestedAreas: 1,
-    riskScore: 48,
+    totalCrowd: 4570,
+    activeZones: 16,
+    congestedAreas: 2,
+    riskScore: 54,
     riskLevel: 'MODERATE',
     bottleneckCount: 0,
-    avgDensityRatio: 0.35,
-    maxFlowUtilization: 0.2,
-    stampedeProbability: 18,
+    avgDensityRatio: 0.45,
+    maxFlowUtilization: 0.25,
+    stampedeProbability: 28,
   });
   const prevRiskLevelRef = useRef<string>('MODERATE');
   const [routeSourceId, setRouteSourceId] = useState<string | null>(null);
@@ -164,8 +247,8 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     addLog('CRITICAL', '🔴 EMERGENCY EVACUATION ACTIVE! Initiating egress protocols...');
 
     // Run Max Flow
-    const entries = nodes.filter(n => n.type === 'ENTRY_GATE').map(n => n.id);
-    const exits = nodes.filter(n => n.type === 'EMERGENCY_EXIT').map(n => n.id);
+    const entries = nodes.filter(n => n.type === 'HALL' || n.type === 'CORRIDOR').map(n => n.id);
+    const exits = nodes.filter(n => n.type === 'EMERGENCY_EXIT' || n.type === 'ENTRY_GATE').map(n => n.id);
     const maxFlowRes = computeMaxFlow(nodes, edges, entries, exits);
 
     // Run Topological sort
@@ -177,7 +260,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       complexity: 'O(E * max_flow)',
       visitedNodes: nodes.map(n => n.id),
       executionTime: maxFlowRes.executionTime,
-      decision: `System bottleneck identified at: ${maxFlowRes.bottlenecks.join(', ') || 'none'}. Optimal evacuation throughput is ${maxFlowRes.maxFlow} people/s. Scheduling evacuation in topological order: ${topoSortRes.order.join(' ➔ ')}.`
+      decision: `System bottleneck identified at: ${maxFlowRes.bottlenecks.join(', ') || 'none'}. Optimal evacuation throughput is ${maxFlowRes.maxFlow} people/s. Scheduling evacuation order: ${topoSortRes.order.join(' ➔ ') || 'N/A (Cycle detected due to bidirectional graph)'}.`
     });
 
     addLog('WARNING', `Edmonds-Karp calculated max evacuation flow: ${maxFlowRes.maxFlow} people/second.`);
@@ -249,9 +332,9 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           }
         });
 
-        // 3. Drainage: Exits evacuate people out of the venue
+        // 3. Drainage: Exits (and Gates in evacuation mode) evacuate people out of the venue
         nextNodes.forEach(node => {
-          if (node.type === 'EMERGENCY_EXIT') {
+          if (node.type === 'EMERGENCY_EXIT' || (node.type === 'ENTRY_GATE' && isEvacuationActive)) {
             const drainRate = isEvacuationActive ? 0.35 : 0.15;
             const drained = node.currentDensity * drainRate * simulationSpeed;
             node.currentDensity = parseFloat(Math.max(0, node.currentDensity - drained).toFixed(1));
@@ -325,14 +408,32 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const nonExitNodes = nodes.filter(n => n.type !== 'EMERGENCY_EXIT');
     const avgDensityRatio = nonExitNodes.reduce((sum, n) => sum + (n.currentDensity / n.capacity), 0) / Math.max(nonExitNodes.length, 1);
 
-    // Component 2: Max flow utilization across all edges
-    const maxFlowUtilization = edges.reduce((max, e) => {
+    // Update edge weights dynamically (congestion-aware routing penalty)
+    const updatedEdges = edges.map(edge => {
+      const dest = nodes.find(n => n.id === edge.target);
+      if (!dest) return edge;
+      
+      const ratio = dest.currentDensity / dest.capacity;
+      let penalty = 0;
+      if (ratio >= 0.9) penalty = 1000.0;
+      else if (ratio >= 0.7) penalty = 300.0;
+      else if (ratio >= 0.5) penalty = 50.0;
+
+      return {
+        ...edge,
+        weight: edge.distance + penalty,
+        currentFlow: Math.round(edge.capacity * 0.25 * ratio)
+      };
+    });
+
+    // Component 2: Max flow utilization across all updated edges
+    const maxFlowUtilization = updatedEdges.reduce((max, e) => {
       const util = e.capacity > 0 ? e.currentFlow / e.capacity : 0;
       return Math.max(max, util);
     }, 0);
 
-    // Component 3: Bottleneck count (edges >= 90% utilized)
-    const bottleneckCount = edges.filter(e => e.capacity > 0 && (e.currentFlow / e.capacity) >= 0.9).length;
+    // Component 3: Bottleneck count (updated edges >= 90% utilized)
+    const bottleneckCount = updatedEdges.filter(e => e.capacity > 0 && (e.currentFlow / e.capacity) >= 0.9).length;
 
     // Composite risk score: weighted formula
     const densityComponent = avgDensityRatio * 45;
@@ -376,25 +477,9 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       stampedeProbability,
     });
 
-    // Update edge weights dynamically (congestion-aware routing penalty)
-    setEdges(prevEdges => prevEdges.map(edge => {
-      const dest = nodes.find(n => n.id === edge.target);
-      if (!dest) return edge;
-      
-      const ratio = dest.currentDensity / dest.capacity;
-      let penalty = 0;
-      if (ratio >= 0.9) penalty = 1000.0;
-      else if (ratio >= 0.7) penalty = 300.0;
-      else if (ratio >= 0.5) penalty = 50.0;
+    setEdges(updatedEdges);
 
-      return {
-        ...edge,
-        weight: edge.distance + penalty,
-        currentFlow: Math.round(edge.capacity * 0.25 * ratio)
-      };
-    }));
-
-  }, [nodes, densityThreshold, edges]);
+  }, [nodes, densityThreshold]);
 
   return (
     <SimulationContext.Provider value={{

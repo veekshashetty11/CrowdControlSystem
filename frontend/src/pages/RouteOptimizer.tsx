@@ -76,14 +76,14 @@ export const RouteOptimizer: React.FC = () => {
 
   // Coordinate helper mapping
   const getXPercent = (x: number) => {
-    const minX = 120;
-    const maxX = 930;
+    const minX = 100;
+    const maxX = 2600;
     return ((x - minX) / (maxX - minX)) * 88 + 6;
   };
 
   const getYPercent = (y: number) => {
     const minY = 100;
-    const maxY = 500;
+    const maxY = 1150;
     return ((y - minY) / (maxY - minY)) * 72 + 14;
   };
 
@@ -297,13 +297,23 @@ export const RouteOptimizer: React.FC = () => {
                     const pathIndex = currentStep ? currentStep.currentPath.indexOf(edge.source) : -1;
                     const isActive = currentStep && pathIndex !== -1 && currentStep.currentPath[pathIndex + 1] === edge.target;
 
+                    const hasReverse = edges.some(e => e.source === edge.target && e.target === edge.source);
+                    let sY = srcNode.y;
+                    let tY = destNode.y;
+                    if (hasReverse) {
+                      const isSourceFirst = edge.source < edge.target;
+                      const offset = isSourceFirst ? -12 : 12;
+                      sY += offset;
+                      tY += offset;
+                    }
+
                     return (
                       <line
                         key={edge.id}
                         x1={`${getXPercent(srcNode.x)}%`}
-                        y1={`${getYPercent(srcNode.y)}%`}
+                        y1={`${getYPercent(sY)}%`}
                         x2={`${getXPercent(destNode.x)}%`}
-                        y2={`${getYPercent(destNode.y)}%`}
+                        y2={`${getYPercent(tY)}%`}
                         stroke={isActive ? '#10B981' : '#1e293b'}
                         strokeWidth={isActive ? 3 : 1.5}
                         className={isActive ? 'shadow-glow-green filter drop-shadow-[0_0_4px_#10B981]' : ''}

@@ -65,7 +65,7 @@ export function findSafestPathAStar(
   while (openSet.size > 0) {
     // Get node with lowest fScore
     let currentId = Array.from(openSet).reduce((minId, id) => 
-      (fScore.get(id) || Infinity) < (fScore.get(minId) || Infinity) ? id : minId
+      (fScore.get(id) ?? Infinity) < (fScore.get(minId) ?? Infinity) ? id : minId
     );
 
     visitedNodes.push(currentId);
@@ -80,9 +80,9 @@ export function findSafestPathAStar(
     for (const edge of outgoing) {
       const neighborId = edge.target;
       const cost = getEdgeCost(edge);
-      const tentativeGScore = (gScore.get(currentId) || 0) + cost;
+      const tentativeGScore = (gScore.get(currentId) ?? 0) + cost;
 
-      if (tentativeGScore < (gScore.get(neighborId) || Infinity)) {
+      if (tentativeGScore < (gScore.get(neighborId) ?? Infinity)) {
         parent.set(neighborId, currentId);
         gScore.set(neighborId, tentativeGScore);
         fScore.set(neighborId, tentativeGScore + heuristic(neighborId, targetId));
@@ -551,7 +551,7 @@ export function findSafestPathAStarDetailed(
 
   while (openSet.size > 0) {
     let currentId = Array.from(openSet).reduce((minId, id) => 
-      (fScoreMap.get(id) || Infinity) < (fScoreMap.get(minId) || Infinity) ? id : minId
+      (fScoreMap.get(id) ?? Infinity) < (fScoreMap.get(minId) ?? Infinity) ? id : minId
     );
 
     visitedNodes.push(currentId);
@@ -559,12 +559,12 @@ export function findSafestPathAStarDetailed(
     // Record Step
     const currentOpenSetList = Array.from(openSet).map(id => ({
       nodeId: id,
-      g: parseFloat((gScoreMap.get(id) || 0).toFixed(1)),
+      g: parseFloat((gScoreMap.get(id) ?? 0).toFixed(1)),
       h: parseFloat(heuristic(id, targetId).toFixed(1)),
-      f: parseFloat((fScoreMap.get(id) || 0).toFixed(1))
+      f: parseFloat((fScoreMap.get(id) ?? 0).toFixed(1))
     }));
 
-    const stepDescription = `Inspecting zone: ${nodeMap.get(currentId)?.name || currentId}. Estimated total cost f(n) = ${parseFloat((fScoreMap.get(currentId) || 0).toFixed(1))}.`;
+    const stepDescription = `Inspecting zone: ${nodeMap.get(currentId)?.name || currentId}. Estimated total cost f(n) = ${parseFloat((fScoreMap.get(currentId) ?? 0).toFixed(1))}.`;
 
     steps.push({
       currentNode: currentId,
@@ -597,9 +597,9 @@ export function findSafestPathAStarDetailed(
       if (closedSet.has(neighborId)) continue;
 
       const cost = getEdgeCost(edge);
-      const tentativeGScore = (gScoreMap.get(currentId) || 0) + cost;
+      const tentativeGScore = (gScoreMap.get(currentId) ?? 0) + cost;
 
-      if (tentativeGScore < (gScoreMap.get(neighborId) || Infinity)) {
+      if (tentativeGScore < (gScoreMap.get(neighborId) ?? Infinity)) {
         parent.set(neighborId, currentId);
         gScoreMap.set(neighborId, tentativeGScore);
         fScoreMap.set(neighborId, tentativeGScore + heuristic(neighborId, targetId));
