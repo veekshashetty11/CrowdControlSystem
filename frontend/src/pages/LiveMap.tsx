@@ -397,19 +397,7 @@ const LiveMapInner: React.FC = () => {
           {/* Transparent grid overlay */}
           <Background color="#1e293b" gap={24} size={1} style={{ opacity: 0.3 }} />
           <Controls showInteractive={false} className="!bg-slate-950/90 !border-slate-800/80 !rounded-2xl !shadow-2xl" />
-          <MiniMap
-            nodeColor={(node) => {
-              const d = node.data as Record<string, unknown>;
-              const rl = d?.riskLevel as string;
-              if (rl === 'CRITICAL') return '#EF4444';
-              if (rl === 'HIGH') return '#F97316';
-              if (rl === 'MODERATE') return '#F59E0B';
-              return '#10B981';
-            }}
-            maskColor="rgba(3,7,18,0.85)"
-            className="!bg-slate-950/95 !border !border-slate-800/80 !rounded-2xl !shadow-2xl"
-            style={{ bottom: 16, right: 16 }}
-          />
+
           <ZoomControls />
         </ReactFlow>
 
