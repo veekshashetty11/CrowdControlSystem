@@ -71,3 +71,25 @@ export interface MaxFlowStep {
   description: string;
 }
 
+// ─── Hazard System (Feature 2) ──────────────────────────────────────────────
+
+export type HazardType =
+  | 'FIRE'
+  | 'SMOKE'
+  | 'BLOCKED_CORRIDOR'
+  | 'MEDICAL_EMERGENCY'
+  | 'POWER_FAILURE'
+  | 'FLOOD'
+  | 'STRUCTURAL_COLLAPSE';
+
+export interface HazardEvent {
+  id: string;
+  nodeId: string;
+  type: HazardType;
+  injectedAt: string;
+  severity: number; // 1-5
+  affectedEdgeIds: string[];
+  originalNodeDensity: number;
+  originalEdgeDistances: Record<string, number>;
+  originalEdgeCapacities: Record<string, number>;
+}

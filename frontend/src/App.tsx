@@ -14,6 +14,9 @@ import { CrowdAnalytics } from './pages/CrowdAnalytics';
 import { SimulationControl } from './pages/SimulationControl';
 import { Settings } from './pages/Settings';
 import { MaxFlowVisualizer } from './pages/MaxFlowVisualizer';
+import { DigitalTwin } from './pages/DigitalTwin';
+import { HazardControl } from './pages/HazardControl';
+import { WhatIfSimulation } from './pages/WhatIfSimulation';
 
 
 const pageVariants = {
@@ -34,9 +37,11 @@ const AppContent: React.FC = () => {
       case 'crowd-analytics':  return <CrowdAnalytics />;
       case 'route-optimizer':  return <RouteOptimizer />;
       case 'max-flow':         return <MaxFlowVisualizer />;
-
       case 'evacuation':       return <EvacuationCenter />;
       case 'simulation':       return <SimulationControl />;
+      case 'digital-twin':     return <DigitalTwin />;
+      case 'hazard-control':   return <HazardControl />;
+      case 'whatif':           return <WhatIfSimulation />;
       case 'settings':         return <Settings />;
       default:                 return <Dashboard />;
     }

@@ -8,10 +8,13 @@ import {
   Play, 
   Settings, 
   Zap,
-  GitFork
+  GitFork,
+  Tv2,
+  TriangleAlert,
+  FlaskConical,
 } from 'lucide-react';
 
-export type TabId = 'dashboard' | 'live-map' | 'heatmap' | 'crowd-analytics' | 'route-optimizer' | 'max-flow' | 'evacuation' | 'simulation' | 'settings';
+export type TabId = 'dashboard' | 'live-map' | 'heatmap' | 'crowd-analytics' | 'route-optimizer' | 'max-flow' | 'evacuation' | 'simulation' | 'settings' | 'digital-twin' | 'hazard-control' | 'whatif';
 
 interface SidebarProps {
   activeTab: TabId;
@@ -33,9 +36,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isEva
     { id: 'crowd-analytics', label: 'Crowd Analytics', icon: BarChart3 },
     { id: 'route-optimizer', label: 'Route Optimizer', icon: Navigation },
     { id: 'max-flow', label: 'Max Flow Visualizer', icon: GitFork },
-
     { id: 'evacuation', label: 'Evacuation Center', icon: ShieldAlert },
     { id: 'simulation', label: 'Simulation Control', icon: Play },
+    // ── New features ───────────────────────────────────────────
+    { id: 'digital-twin', label: 'Digital Twin', icon: Tv2 },
+    { id: 'hazard-control', label: 'Hazard Control', icon: TriangleAlert },
+    { id: 'whatif', label: 'What-If Simulation', icon: FlaskConical },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 

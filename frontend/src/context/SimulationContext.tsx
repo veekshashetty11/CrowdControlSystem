@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import type { VenueNode, VenueEdge, LogEntry, AlgorithmStep, SimulationStats } from '../types';
+import type { VenueNode, VenueEdge, LogEntry, AlgorithmStep, SimulationStats, HazardType, HazardEvent } from '../types';
 import { findSafestPathAStar, computeMaxFlow, runTopologicalSort } from '../utils/algorithms';
 
 interface SimulationContextProps {
@@ -33,6 +33,11 @@ interface SimulationContextProps {
   routeDestId: string | null;
   setRouteSourceId: (id: string | null) => void;
   setRouteDestId: (id: string | null) => void;
+  // ── Hazard system (Feature 2) ──────────────────────────────────────────
+  activeHazards: HazardEvent[];
+  injectHazard: (nodeId: string, type: HazardType, severity?: number) => void;
+  clearHazard: (hazardId: string) => void;
+  clearAllHazards: () => void;
 }
 
 const SimulationContext = createContext<SimulationContextProps | undefined>(undefined);
@@ -168,6 +173,8 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [routeSourceId, setRouteSourceId] = useState<string | null>(null);
   const [routeDestId, setRouteDestId] = useState<string | null>(null);
 
+  const [activeHazards, setActiveHazards] = useState<HazardEvent[]>([]);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Helper to add logs
@@ -285,6 +292,105 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
       return n;
     }));
+  };
+
+  // ── Hazard Injection (Feature 2) ──────────────────────────────────────────
+  const injectHazard = (nodeId: string, type: HazardType, severity: number = 3) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    const connectedEdges = edges.filter(e => e.source === nodeId || e.target === nodeId);
+    const affectedEdgeIds = connectedEdges.map(e => e.id);
+    const originalEdgeDistances: Record<string, number> = {};
+    const originalEdgeCapacities: Record<string, number> = {};
+    connectedEdges.forEach(e => {
+      originalEdgeDistances[e.id] = e.distance;
+      originalEdgeCapacities[e.id] = e.capacity;
+    });
+
+    const hazardEvent: HazardEvent = {
+      id: Math.random().toString(36).slice(2, 10),
+      nodeId,
+      type,
+      injectedAt: new Date().toLocaleTimeString(),
+      severity,
+      affectedEdgeIds,
+      originalNodeDensity: node.currentDensity,
+      originalEdgeDistances,
+      originalEdgeCapacities,
+    };
+
+    // Apply node effects
+    setNodes(prev => prev.map(n => {
+      if (n.id !== nodeId) return n;
+      switch (type) {
+        case 'FIRE':               return { ...n, currentDensity: n.capacity };
+        case 'FLOOD':              return { ...n, currentDensity: Math.min(n.capacity, n.capacity * 0.9) };
+        case 'POWER_FAILURE':      return { ...n, currentDensity: Math.min(n.capacity, n.currentDensity * 1.3) };
+        default:                   return n;
+      }
+    }));
+
+    // Apply edge effects via distance (feeds dynamic weight recalc automatically)
+    setEdges(prev => prev.map(e => {
+      if (!affectedEdgeIds.includes(e.id)) return e;
+      switch (type) {
+        case 'FIRE':                  return { ...e, distance: e.distance + 800 * severity };
+        case 'SMOKE':                 return { ...e, capacity: Math.max(1, Math.floor(e.capacity / 2)) };
+        case 'BLOCKED_CORRIDOR':      return { ...e, distance: 999999 };
+        case 'POWER_FAILURE':         return e.source === nodeId ? { ...e, capacity: 0 } : e;
+        case 'FLOOD':                 return { ...e, distance: e.distance + 400 * severity };
+        case 'STRUCTURAL_COLLAPSE':   return { ...e, distance: 999999 };
+        case 'MEDICAL_EMERGENCY':     return { ...e, distance: e.distance + 200 };
+        default:                      return e;
+      }
+    }));
+
+    setActiveHazards(prev => [...prev, hazardEvent]);
+
+    const labels: Record<HazardType, string> = {
+      FIRE: '🔥 FIRE DETECTED',
+      SMOKE: '💨 SMOKE ALERT',
+      BLOCKED_CORRIDOR: '🚧 CORRIDOR BLOCKED',
+      MEDICAL_EMERGENCY: '🏥 MEDICAL EMERGENCY',
+      POWER_FAILURE: '⚡ POWER FAILURE',
+      FLOOD: '🌊 FLOOD ALERT',
+      STRUCTURAL_COLLAPSE: '💀 STRUCTURAL COLLAPSE',
+    };
+    addLog('CRITICAL', `${labels[type]} at ${node.name}! Severity ${severity}/5. Rerouting initiated.`);
+  };
+
+  const clearHazard = (hazardId: string) => {
+    const hazard = activeHazards.find(h => h.id === hazardId);
+    if (!hazard) return;
+    setEdges(prev => prev.map(e => {
+      if (!hazard.affectedEdgeIds.includes(e.id)) return e;
+      return {
+        ...e,
+        distance: hazard.originalEdgeDistances[e.id] ?? e.distance,
+        capacity: hazard.originalEdgeCapacities[e.id] ?? e.capacity,
+      };
+    }));
+    setActiveHazards(prev => prev.filter(h => h.id !== hazardId));
+    addLog('INFO', `Hazard ${hazard.type} at node ${hazard.nodeId} cleared. Routing restored.`);
+  };
+
+  const clearAllHazards = () => {
+    const distMap = new Map<string, number>();
+    const capMap  = new Map<string, number>();
+    activeHazards.forEach(h => {
+      h.affectedEdgeIds.forEach(eid => {
+        if (!distMap.has(eid)) distMap.set(eid, h.originalEdgeDistances[eid]);
+        if (!capMap.has(eid))  capMap.set(eid,  h.originalEdgeCapacities[eid]);
+      });
+    });
+    setEdges(prev => prev.map(e =>
+      distMap.has(e.id)
+        ? { ...e, distance: distMap.get(e.id)!, capacity: capMap.get(e.id) ?? e.capacity }
+        : e
+    ));
+    setActiveHazards([]);
+    addLog('INFO', 'All hazards cleared. Venue restored to normal operations.');
   };
 
   // Periodic Simulation loop
@@ -513,6 +619,10 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       routeDestId,
       setRouteSourceId,
       setRouteDestId,
+      activeHazards,
+      injectHazard,
+      clearHazard,
+      clearAllHazards,
     }}>
       {children}
     </SimulationContext.Provider>
