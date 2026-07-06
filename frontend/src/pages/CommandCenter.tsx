@@ -6,7 +6,10 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip 
+  Tooltip,
+  BarChart,
+  Bar,
+  Legend
 } from 'recharts';
 import { 
   Activity, 
@@ -23,18 +26,19 @@ import {
   ArrowRight,
   Info,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  MessageSquare,
+  TrendingUp
 } from 'lucide-react';
 import { useSimulation } from '../context/SimulationContext';
 import { GlassCard } from '../components/GlassCard';
-import type { PanicType } from '../types';
+import type { PanicType, TimelineEventType } from '../types';
 
 export const CommandCenter: React.FC = () => {
   const { 
     nodes, 
     edges, 
     stats, 
-    logs,
     densityHistory, 
     panickedNodes, 
     smartDecision, 
@@ -42,11 +46,22 @@ export const CommandCenter: React.FC = () => {
     clearPanic, 
     isEvacuationActive, 
     triggerEvacuation, 
-    cancelEvacuation 
+    cancelEvacuation,
+    timelineEvents,
+    peopleEvacuated,
+    selectedNodeId,
+    setSelectedNodeId,
+    selectedPath
   } = useSimulation();
 
   const [selectedPanicNode, setSelectedPanicNode] = useState<string>('');
   const [panicType, setPanicType] = useState<PanicType>('FIRE');
+
+  // AI Assistant States
+  const [aiResponse, setAiResponse] = useState<string>(
+    'Select an query directive above to query the Emergency Command AI. The rules engine will synthesize graph, congestion, and hazard states in real time.'
+  );
+  const [activeQuery, setActiveQuery] = useState<string>('');
 
   // Filter out forecast points for current density stats
   const actualHistory = densityHistory.filter(pt => !pt.time.startsWith('+'));
@@ -63,13 +78,8 @@ export const CommandCenter: React.FC = () => {
   };
 
   // Get the latest forecast points
-  const f30 = densityHistory.find(pt => pt.time === '+30s');
   const f1m = densityHistory.find(pt => pt.time === '+1m');
   const f2m = densityHistory.find(pt => pt.time === '+2m');
-
-  const ma30 = f30?.predictedMA || currentTotalDensity;
-  const es30 = f30?.predictedES || currentTotalDensity;
-  const te30 = f30?.predictedTE || currentTotalDensity;
 
   const ma1m = f1m?.predictedMA || currentTotalDensity;
   const es1m = f1m?.predictedES || currentTotalDensity;
@@ -80,18 +90,39 @@ export const CommandCenter: React.FC = () => {
   const te2m = f2m?.predictedTE || currentTotalDensity;
 
   // Average predicted values
-  const averagePredicted30s = Math.round((ma30 + es30 + te30) / 3);
   const averagePredicted2m = Math.round((ma2m + es2m + te2m) / 3);
 
-  const confidence30s = 95;
   const confidence1m = 88;
   const confidence2m = 78;
 
-  // Evacuation Performance Score Calculation
+  // Evacuation Performance Scorecard Calculations
   const panickedCount = Object.keys(panickedNodes).length;
   const panicRatio = panickedCount / Math.max(1, nodes.length);
-  const rawEvacScore = 100 - (stats.stampedeProbability * 0.5) - (panicRatio * 30) - (stats.bottleneckCount * 8);
-  const evacPerformanceScore = Math.max(5, Math.min(100, Math.round(rawEvacScore)));
+  
+  const safetyScore = Math.max(0, Math.round(100 - (stats.stampedeProbability * 0.7) - (panicRatio * 30)));
+  const efficiencyScore = Math.max(0, Math.round(100 - (stats.bottleneckCount * 12) - (stats.maxFlowUtilization * 15)));
+  const overallPerformanceScore = Math.max(5, Math.min(100, Math.round((safetyScore * 0.6) + (efficiencyScore * 0.4))));
+
+  const peopleRemaining = Math.max(0, Math.round(nodes.filter(n => n.type !== 'EMERGENCY_EXIT').reduce((sum, n) => sum + n.currentDensity, 0)));
+
+  // Estimate Egress duration remaining
+  const activeExitsCount = nodes.filter(n => n.type === 'EMERGENCY_EXIT' || (n.type === 'ENTRY_GATE' && isEvacuationActive)).length;
+  const avgDrainRate = isEvacuationActive ? 12.5 : 5.0;
+  const estimatedSecondsLeft = activeExitsCount > 0 
+    ? Math.round(peopleRemaining / (activeExitsCount * avgDrainRate * Math.max(0.5, stats.maxFlowUtilization)))
+    : 999;
+
+  // Determine overall letter grade
+  const getOverallGrade = (score: number) => {
+    if (score >= 95) return { grade: 'A+', color: 'text-brand-green border-brand-green bg-brand-green/10 shadow-glow-green' };
+    if (score >= 90) return { grade: 'A', color: 'text-emerald-400 border-emerald-400 bg-emerald-400/10' };
+    if (score >= 80) return { grade: 'B', color: 'text-blue-400 border-blue-400 bg-blue-400/10' };
+    if (score >= 70) return { grade: 'C', color: 'text-yellow-400 border-yellow-400 bg-yellow-400/10' };
+    if (score >= 60) return { grade: 'D', color: 'text-orange-400 border-orange-400 bg-orange-400/10' };
+    return { grade: 'F', color: 'text-brand-red border-brand-red bg-brand-red/10 shadow-glow-red' };
+  };
+
+  const performanceGrade = getOverallGrade(overallPerformanceScore);
 
   // BFS Panic Trigger handler
   const handleTriggerPanic = () => {
@@ -153,9 +184,41 @@ export const CommandCenter: React.FC = () => {
     }
   ];
 
+  // Live strategy scoring calculations
+  const totalHazardsCount = nodes.filter(n => n.currentDensity > n.capacity * 0.95).length; 
+  const isPanicSpread = panickedCount >= 3;
+
+  const comparisonData = [
+    {
+      name: 'A* Search',
+      Safety: isPanicSpread ? 15 : 75,
+      Efficiency: isPanicSpread ? 20 : 80,
+      Throughput: 40
+    },
+    {
+      name: 'BFS Scheduling',
+      Safety: isEvacuationActive ? 65 : 45,
+      Efficiency: isEvacuationActive ? 75 : 55,
+      Throughput: 60
+    },
+    {
+      name: 'Ford-Fulkerson',
+      Safety: totalHazardsCount > 0 ? 80 : 60,
+      Efficiency: totalHazardsCount > 0 ? 85 : 70,
+      Throughput: 90
+    },
+    {
+      name: 'Hybrid Routing',
+      Safety: isPanicSpread || isEvacuationActive ? 95 : 85,
+      Efficiency: isPanicSpread || isEvacuationActive ? 92 : 88,
+      Throughput: 95
+    }
+  ];
+
   // Algorithmic explainable rules
   const getSelectedAlgorithmExplanation = (algoName: string) => {
     switch (algoName) {
+      case 'Hybrid Routing (A* + Max Flow)':
       case 'Hybrid Routing (A* + Max Flow)':
         return {
           pros: 'Avoids structural & fire hazards while maximizing bottleneck corridor width utilization.',
@@ -164,6 +227,7 @@ export const CommandCenter: React.FC = () => {
           constraints: 'Active Fire/Explosion hazards + Spread of Panic level >= 3 zones'
         };
       case 'Ford-Fulkerson (Max Flow)':
+      case 'Ford-Fulkerson + A*':
         return {
           pros: 'Solves overall routing congestion by shifting cohort streams to underutilized exits.',
           cons: 'Increases walking distance for individual groups to protect network safety.',
@@ -196,6 +260,176 @@ export const CommandCenter: React.FC = () => {
   };
 
   const currentExplanation = getSelectedAlgorithmExplanation(smartDecision.selectedAlgorithm);
+
+  // Live route path stats for explainable panel
+  const routeCongestedNodes = selectedPath.filter(nid => {
+    const node = nodes.find(n => n.id === nid);
+    return node && (node.currentDensity / node.capacity) >= 0.7;
+  });
+
+  const routeHazardsIntersect = selectedPath.filter(nid => {
+    return panickedNodes[nid] && panickedNodes[nid].level > 30;
+  });
+
+  // AI Assistant Button Click Handlers
+  const handleQuery = (queryType: string) => {
+    setActiveQuery(queryType);
+    switch (queryType) {
+      case 'SAFEST_EXIT': {
+        const exits = nodes.filter(n => n.type === 'EMERGENCY_EXIT' || n.type === 'ENTRY_GATE');
+        if (exits.length === 0) {
+          setAiResponse('No usable exits detected in the venue graph configuration.');
+          return;
+        }
+        
+        // Find exit with lowest density
+        let bestExit = exits[0];
+        let lowestRatio = 999;
+        exits.forEach(ex => {
+          const ratio = ex.currentDensity / ex.capacity;
+          const isPanicSource = panickedNodes[ex.id] && panickedNodes[ex.id].level > 20;
+          const score = ratio + (isPanicSource ? 5.0 : 0);
+          if (score < lowestRatio) {
+            lowestRatio = score;
+            bestExit = ex;
+          }
+        });
+
+        const pct = Math.round((bestExit.currentDensity / bestExit.capacity) * 100);
+        setAiResponse(
+          `[EMERGENCY COMMAND AI: SAFEST EXIT ANALYTICAL ROUTING]\n\n` +
+          `• Recommending Egress Portal: ${bestExit.name}\n` +
+          `• Density load factor: ${pct}% (${Math.round(bestExit.currentDensity)} / ${bestExit.capacity} Capacity)\n` +
+          `• Threat indicators: ${pct > 70 ? '⚠️ Heavy local queues forming.' : '🟢 Node clear of critical blockages.'}\n` +
+          `• Tactical rationale: Lowest density ratio within standard deviation. High remaining throughput capacity ensures minimal stampede friction.`
+        );
+        break;
+      }
+      case 'HIGHEST_CONGESTION': {
+        const internalNodes = nodes.filter(n => n.type !== 'EMERGENCY_EXIT');
+        if (internalNodes.length === 0) {
+          setAiResponse('No internal graph sectors loaded.');
+          return;
+        }
+
+        let worstNode = internalNodes[0];
+        let maxRatio = -1;
+        internalNodes.forEach(n => {
+          const ratio = n.currentDensity / n.capacity;
+          if (ratio > maxRatio) {
+            maxRatio = ratio;
+            worstNode = n;
+          }
+        });
+
+        const pct = Math.round(maxRatio * 100);
+        setAiResponse(
+          `[EMERGENCY COMMAND AI: SECTOR CONGESTION AUDIT]\n\n` +
+          `• Critical Hotspot identified: ${worstNode.name}\n` +
+          `• Current Congestion Index: ${pct}%\n` +
+          `• Sector Occupancy: ${Math.round(worstNode.currentDensity)} people / ${worstNode.capacity} capacity limit.\n` +
+          `• Action Plan: Deploy active re-routing. Bypassing corridors connected to ${worstNode.id} is recommended.`
+        );
+        break;
+      }
+      case 'BEST_ROUTE': {
+        if (selectedPath.length === 0) {
+          setAiResponse(
+            `[EMERGENCY COMMAND AI: ROUTE COMPILATION]\n\n` +
+            `• Status: No active path selected on map.\n` +
+            `• Action: Select a node on the venue layout or set route coordinates in the Control Panel.`
+          );
+          return;
+        }
+
+        const pathNames = selectedPath.map(id => nodes.find(n => n.id === id)?.name || id);
+        const avgDensityRatio = selectedPath.reduce((acc, id) => {
+          const n = nodes.find(x => x.id === id);
+          return acc + (n ? n.currentDensity / n.capacity : 0);
+        }, 0) / selectedPath.length;
+
+        setAiResponse(
+          `[EMERGENCY COMMAND AI: SYSTEM OPTIMAL PATH DETAILED WIDGET]\n\n` +
+          `• Path Vector: ${pathNames.join(' ➔ ')}\n` +
+          `• Path hops: ${selectedPath.length} steps\n` +
+          `• Average Path Occupancy: ${Math.round(avgDensityRatio * 100)}%\n` +
+          `• Safety rating: ${routeHazardsIntersect.length > 0 ? '🔴 WARNING: Path cuts through panicked nodes!' : '🟢 SECURE: Path avoids hazard epicenters.'}`
+        );
+        break;
+      }
+      case 'WHY_ROUTE': {
+        setAiResponse(
+          `[EMERGENCY COMMAND AI: STRATEGY SCHEDULER JUSTIFICATION]\n\n` +
+          `• Selected Strategy Core: ${smartDecision.selectedAlgorithm}\n` +
+          `• Situation Profile: ${smartDecision.situation}\n` +
+          `• Algorithmic Rationale: ${smartDecision.reason}\n` +
+          `• Performance confidence: ${smartDecision.decisionConfidence}%\n` +
+          `• Safety margin improvement: +${smartDecision.estimatedImprovement}% vs traditional shortest path logic.`
+        );
+        break;
+      }
+      case 'CURRENT_RISKS': {
+        const hazardTypes = nodes.filter(n => panickedNodes[n.id] && panickedNodes[n.id].level > 50).map(n => n.name);
+        setAiResponse(
+          `[EMERGENCY COMMAND AI: COMPREHENSIVE VENUE RISK INDEX]\n\n` +
+          `• Active Stampede Risk Factor: ${stats.stampedeProbability}%\n` +
+          `• Dynamic Bottleneck Count: ${stats.bottleneckCount} corridors\n` +
+          `• BFS Panic Propagation sectors: ${panickedCount} nodes\n` +
+          `• Severely threatened nodes (Panic > 50%): ${hazardTypes.join(', ') || 'None'}`
+        );
+        break;
+      }
+      case 'RECOMMENDATIONS': {
+        const recList = [];
+        if (stats.stampedeProbability > 55) {
+          recList.push('⚠️ TRIGGER VENUE EVACUATION ALARMS IMMEDIATELY.');
+        }
+        if (stats.bottleneckCount > 1) {
+          recList.push('🚧 Redirect crowd flow around key corridor junctions to mitigate bottlenecks.');
+        }
+        if (panickedCount > 0) {
+          recList.push('🚨 Deploy tactical floor marshals to panicked nodes to control crowd expansion waves.');
+        }
+        if (recList.length === 0) {
+          recList.push('✅ All parameters stable. Continue standard routing supervision.');
+        }
+
+        setAiResponse(
+          `[EMERGENCY COMMAND AI: COMMAND OPERATIONAL DECISION LIST]\n\n` +
+          recList.map((rec, i) => `${i + 1}. ${rec}`).join('\n')
+        );
+        break;
+      }
+      default:
+        break;
+    }
+  };
+
+  const getTimelineIcon = (type: TimelineEventType) => {
+    switch (type) {
+      case 'HAZARD_INJECTED': return <Flame className="w-4 h-4 text-brand-red" />;
+      case 'PANIC_TRIGGERED': return <ShieldAlert className="w-4 h-4 text-orange-500 animate-pulse" />;
+      case 'REROUTED': return <RotateCcw className="w-4 h-4 text-brand-blue" />;
+      case 'STAMPEDE_RISK_SPIKE': return <AlertTriangle className="w-4 h-4 text-brand-red animate-bounce" />;
+      case 'EVACUATION_STARTED': return <Activity className="w-4 h-4 text-emerald-400" />;
+      case 'STABILIZED': return <CheckCircle className="w-4 h-4 text-brand-green" />;
+      case 'CONGESTION_ALERT': return <Layers className="w-4 h-4 text-yellow-500" />;
+      default: return <Info className="w-4 h-4 text-slate-400" />;
+    }
+  };
+
+  const getTimelineBorderColor = (type: TimelineEventType) => {
+    switch (type) {
+      case 'HAZARD_INJECTED': return 'border-brand-red/30 bg-brand-red/5';
+      case 'PANIC_TRIGGERED': return 'border-orange-500/30 bg-orange-500/5';
+      case 'REROUTED': return 'border-brand-blue/30 bg-brand-blue/5';
+      case 'STAMPEDE_RISK_SPIKE': return 'border-brand-red/40 bg-brand-red/10';
+      case 'EVACUATION_STARTED': return 'border-emerald-500/30 bg-emerald-500/5';
+      case 'STABILIZED': return 'border-brand-green/30 bg-brand-green/5';
+      case 'CONGESTION_ALERT': return 'border-yellow-500/30 bg-yellow-500/5';
+      default: return 'border-slate-800 bg-slate-900/35';
+    }
+  };
 
   return (
     <div className="p-6 space-y-6 bg-slate-950 min-h-screen text-slate-100 pb-20">
@@ -241,15 +475,15 @@ export const CommandCenter: React.FC = () => {
       {/* 2. Top Metric Row (Scorecard HUD including Evacuation Performance Score) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Evacuation Performance Score Card */}
-        <GlassCard className="border-slate-800/80 bg-slate-900/40 relative overflow-hidden flex flex-col justify-between p-5">
+        <GlassCard className="border-slate-800 bg-slate-900/40 relative overflow-hidden flex flex-col justify-between p-5">
           <div className="absolute top-0 right-0 w-24 h-24 bg-brand-green/5 rounded-full blur-2xl -z-10"></div>
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center">
               <Award className="w-4 h-4 mr-1.5 text-brand-green" />
-              Evacuation Performance
+              Egress Operations Grade
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 bg-brand-green/10 border border-brand-green/20 rounded text-brand-green font-bold">
-              SYS HEALTH
+            <span className={`text-xs font-black font-mono border-2 px-2.5 py-0.5 rounded-md ${performanceGrade.color}`}>
+              {performanceGrade.grade}
             </span>
           </div>
           <div className="my-4 flex items-center space-x-4">
@@ -260,49 +494,49 @@ export const CommandCenter: React.FC = () => {
                   cx="40" 
                   cy="40" 
                   r="32" 
-                  stroke={evacPerformanceScore >= 75 ? '#10b981' : evacPerformanceScore >= 50 ? '#f59e0b' : '#ef4444'} 
+                  stroke={overallPerformanceScore >= 80 ? '#10b981' : overallPerformanceScore >= 60 ? '#f59e0b' : '#ef4444'} 
                   strokeWidth="6" 
                   fill="transparent" 
                   strokeDasharray={2 * Math.PI * 32}
-                  strokeDashoffset={2 * Math.PI * 32 * (1 - evacPerformanceScore / 100)}
+                  strokeDashoffset={2 * Math.PI * 32 * (1 - overallPerformanceScore / 100)}
                   strokeLinecap="round"
                   className="transition-all duration-1000"
                 />
               </svg>
-              <div className="absolute text-xl font-black text-white font-mono">{evacPerformanceScore}%</div>
+              <div className="absolute text-xl font-black text-white font-mono">{overallPerformanceScore}%</div>
             </div>
             <div>
-              <div className="text-xs font-mono text-slate-400">Flow Efficiency</div>
+              <div className="text-xs font-mono text-slate-400">Tactical Score</div>
               <div className="text-sm font-bold text-white mt-0.5">
-                {evacPerformanceScore >= 80 ? 'Optimal Egress' : evacPerformanceScore >= 55 ? 'Active Queuing' : 'Critical Bottlenecks'}
+                {overallPerformanceScore >= 80 ? 'Optimal Status' : overallPerformanceScore >= 60 ? 'Stressed Flow' : 'Critical Hazard'}
               </div>
-              <p className="text-[10px] text-slate-500 leading-tight mt-1">Based on delay, queue sizes, & stampede risk.</p>
+              <p className="text-[10px] text-slate-500 leading-tight mt-1">Weighted metric index of safety and bottleneck rates.</p>
             </div>
           </div>
           <div className="text-[10px] font-mono text-slate-500 border-t border-slate-900 pt-2 flex justify-between">
-            <span>Flow Cap: {Math.round(stats.maxFlowUtilization * 100)}%</span>
-            <span>Delay: {stats.bottleneckCount * 3}s</span>
+            <span>Safety: {safetyScore}%</span>
+            <span>Efficiency: {efficiencyScore}%</span>
           </div>
         </GlassCard>
 
-        {/* Forecast +30 Seconds card */}
+        {/* Live Evacuated Statistics */}
         <GlassCard className="border-slate-800 bg-slate-900/30 flex flex-col justify-between p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center">
-              <Clock className="w-4 h-4 mr-1.5 text-brand-blue" />
-              Density Forecast +30s
+              <TrendingUp className="w-4 h-4 mr-1.5 text-brand-green" />
+              Evacuation Tracking
             </span>
-            <span className={`text-[10px] font-bold border px-2 py-0.5 rounded-full ${getPredictionRisk(averagePredicted30s).color}`}>
-              {getPredictionRisk(averagePredicted30s).label}
+            <span className="text-[10px] font-mono px-2 py-0.5 bg-brand-green/10 border border-brand-green/20 rounded text-brand-green font-bold">
+              LIVE COUNT
             </span>
           </div>
           <div className="my-4">
-            <div className="text-3xl font-black text-white">{averagePredicted30s} <span className="text-xs font-normal text-slate-400 font-mono">Pax</span></div>
-            <p className="text-[11px] text-slate-500 mt-1">Linear trend projection: {te30 > currentTotalDensity ? 'Rising flow rates' : 'Declining load'}</p>
+            <div className="text-3xl font-black text-white">{peopleEvacuated} <span className="text-xs font-normal text-slate-400 font-mono">Evacuated</span></div>
+            <p className="text-[11px] text-slate-500 mt-1">Remaining inside venue: {peopleRemaining} Pax</p>
           </div>
           <div className="text-[10px] font-mono text-slate-500 border-t border-slate-900 pt-2 flex justify-between">
-            <span>Confidence: {confidence30s}%</span>
-            <span>Var: +/- 1.8%</span>
+            <span>Egress Rate: {isEvacuationActive ? '15.5 people/s' : '0.0 people/s'}</span>
+            <span>Evacuation: {isEvacuationActive ? 'ACTIVE' : 'STANDBY'}</span>
           </div>
         </GlassCard>
 
@@ -319,7 +553,7 @@ export const CommandCenter: React.FC = () => {
           </div>
           <div className="my-4">
             <div className="text-3xl font-black text-white">{Math.round((ma1m + es1m + te1m) / 3)} <span className="text-xs font-normal text-slate-400 font-mono">Pax</span></div>
-            <p className="text-[11px] text-slate-500 mt-1">Exponential smoothed projection: {es1m > currentTotalDensity ? 'Slowing exits' : 'Clearing paths'}</p>
+            <p className="text-[11px] text-slate-500 mt-1">Exponential smoothed: {es1m > currentTotalDensity ? 'Load accumulating' : 'Clearing paths'}</p>
           </div>
           <div className="text-[10px] font-mono text-slate-500 border-t border-slate-900 pt-2 flex justify-between">
             <span>Confidence: {confidence1m}%</span>
@@ -340,7 +574,7 @@ export const CommandCenter: React.FC = () => {
           </div>
           <div className="my-4">
             <div className="text-3xl font-black text-white">{averagePredicted2m} <span className="text-xs font-normal text-slate-400 font-mono">Pax</span></div>
-            <p className="text-[11px] text-slate-500 mt-1">Long-range trend forecasting model</p>
+            <p className="text-[11px] text-slate-500 mt-1">Est Egress Time: {isEvacuationActive ? `${estimatedSecondsLeft} seconds` : 'N/A'}</p>
           </div>
           <div className="text-[10px] font-mono text-slate-500 border-t border-slate-900 pt-2 flex justify-between">
             <span>Confidence: {confidence2m}%</span>
@@ -375,6 +609,8 @@ export const CommandCenter: React.FC = () => {
                 const y2 = destNode.y / 2 + 50;
 
                 const isPathEdge = edge.distance > 900000;
+                const isSelectedPathEdge = selectedPath.includes(edge.source) && selectedPath.includes(edge.target);
+                
                 return (
                   <line 
                     key={edge.id}
@@ -382,10 +618,10 @@ export const CommandCenter: React.FC = () => {
                     y1={y1}
                     x2={x2}
                     y2={y2}
-                    stroke={isPathEdge ? '#ef4444' : '#334155'}
-                    strokeWidth={isPathEdge ? 1 : 2}
+                    stroke={isSelectedPathEdge ? '#3b82f6' : isPathEdge ? '#ef4444' : '#334155'}
+                    strokeWidth={isSelectedPathEdge ? 4 : isPathEdge ? 1 : 2}
                     strokeDasharray={isPathEdge ? '3 3' : 'none'}
-                    opacity={isPathEdge ? 0.3 : 0.7}
+                    opacity={isSelectedPathEdge ? 0.95 : isPathEdge ? 0.3 : 0.7}
                   />
                 );
               })}
@@ -397,9 +633,18 @@ export const CommandCenter: React.FC = () => {
                 const densityRatio = node.currentDensity / node.capacity;
                 const panicNode = panickedNodes[node.id];
                 const hasPanic = panicNode && panicNode.level > 0;
+                const isSelectedNode = selectedNodeId === node.id;
 
                 return (
-                  <g key={node.id} className="cursor-pointer">
+                  <g key={node.id} className="cursor-pointer" onClick={() => setSelectedNodeId(node.id)}>
+                    {/* Selected highlight pulse */}
+                    {isSelectedNode && (
+                      <circle cx={x} cy={y} r={28} fill="none" stroke="#3b82f6" strokeWidth={3} opacity={0.9}>
+                        <animate attributeName="r" values="14;28;14" dur="1.5s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.5s" repeatCount="indefinite" />
+                      </circle>
+                    )}
+
                     {/* Panic ripple waves */}
                     {hasPanic && (
                       <>
@@ -420,7 +665,7 @@ export const CommandCenter: React.FC = () => {
                       cy={y} 
                       r={hasPanic ? 16 : 14} 
                       fill={getNodeColor(node.id, densityRatio)}
-                      stroke="#0f172a"
+                      stroke={isSelectedNode ? '#3b82f6' : '#0f172a'}
                       strokeWidth={3}
                     />
 
@@ -429,7 +674,7 @@ export const CommandCenter: React.FC = () => {
                       x={x} 
                       y={y - 22} 
                       textAnchor="middle" 
-                      fill="#94a3b8" 
+                      fill={isSelectedNode ? '#3b82f6' : '#94a3b8'} 
                       fontSize={11} 
                       fontWeight="bold"
                       fontFamily="monospace"
@@ -538,10 +783,126 @@ export const CommandCenter: React.FC = () => {
         </GlassCard>
       </div>
 
-      {/* 4. Fourth Grid: Predictive Recharts Panel & Incident Timeline */}
+      {/* 4. Fourth Grid: Emergency Command AI Assistant & Incident Timeline */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recharts Predictive forecasting line graph */}
-        <GlassCard className="lg:col-span-2 border-slate-800/80 bg-slate-900/40 p-4">
+        {/* Rule-Based AI Assistant Widget */}
+        <GlassCard className="lg:col-span-2 border-slate-850 bg-slate-900/40 p-5 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 bg-brand-blue/10 rounded-lg text-brand-blue">
+                  <MessageSquare className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white text-sm">Emergency Command AI Assistant</h3>
+                  <p className="text-[10px] text-slate-500 font-mono">RULE-BASED INCIDENT ADVISOR</p>
+                </div>
+              </div>
+              <span className="text-[9px] font-mono text-slate-500 px-2 py-0.5 border border-slate-800 bg-slate-950 rounded">V2.4 ENGINE</span>
+            </div>
+
+            {/* AI Control Buttons */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4">
+              {[
+                { id: 'SAFEST_EXIT', label: 'Safest Exit' },
+                { id: 'HIGHEST_CONGESTION', label: 'Highest Congestion' },
+                { id: 'BEST_ROUTE', label: 'Best Route' },
+                { id: 'WHY_ROUTE', label: 'Why this Route?' },
+                { id: 'CURRENT_RISKS', label: 'Current Risks' },
+                { id: 'RECOMMENDATIONS', label: 'Recommendations' }
+              ].map(btn => (
+                <button
+                  key={btn.id}
+                  onClick={() => handleQuery(btn.id)}
+                  className={`py-2 px-3 rounded-lg border font-mono text-[11px] font-semibold text-center transition-all ${
+                    activeQuery === btn.id
+                      ? 'bg-brand-blue/20 border-brand-blue text-brand-blue shadow-glow-blue'
+                      : 'bg-slate-950 border-slate-850 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                  }`}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+
+            {/* AI Output Terminal */}
+            <div className="bg-slate-950 border border-slate-850 rounded-xl p-4 min-h-[140px] font-mono text-xs text-slate-300 leading-relaxed shadow-inner relative overflow-hidden">
+              <div className="absolute top-2 right-3 flex items-center space-x-1.5">
+                <span className="w-1.5 h-1.5 bg-brand-green rounded-full animate-ping"></span>
+                <span className="text-[9px] text-slate-500">READY</span>
+              </div>
+              <pre className="whitespace-pre-wrap font-sans text-xs">{aiResponse}</pre>
+            </div>
+          </div>
+
+          <div className="text-[10px] text-slate-500 font-mono mt-3.5 flex justify-between items-center border-t border-slate-900 pt-2.5">
+            <span>Query Pipeline: ACTIVE</span>
+            <span>Confidence Indicator: {smartDecision.decisionConfidence}%</span>
+          </div>
+        </GlassCard>
+
+        {/* Live Incident Timeline Panel */}
+        <GlassCard className="border-slate-800 bg-slate-900/40 p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+            <div className="flex items-center space-x-2">
+              <Clock className="w-4 h-4 text-brand-red animate-pulse" />
+              <h3 className="font-semibold text-white text-sm">Incident Timeline & Replay</h3>
+            </div>
+            <span className="text-[10px] text-slate-500 font-mono">CLICK TO LOCATE INCIDENT</span>
+          </div>
+
+          <div className="space-y-3 overflow-y-auto max-h-[240px] pr-1 flex-1 font-mono text-[11px]">
+            {timelineEvents.length === 0 ? (
+              <div className="text-slate-500 text-center py-10">No incident logs loaded.</div>
+            ) : (
+              timelineEvents.map((evt) => {
+                const isSelected = selectedNodeId === evt.nodeId;
+                return (
+                  <div 
+                    key={evt.id} 
+                    onClick={() => {
+                      if (evt.nodeId) {
+                        setSelectedNodeId(evt.nodeId);
+                      }
+                    }}
+                    className={`p-2.5 border rounded-xl cursor-pointer transition-all duration-300 ${getTimelineBorderColor(evt.type)} ${
+                      isSelected 
+                        ? 'border-brand-blue/60 shadow-glow-blue bg-brand-blue/5 translate-x-1' 
+                        : 'hover:border-slate-700 hover:bg-slate-950/40'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-slate-500 text-[10px] mb-1">
+                      <span className="flex items-center gap-1.5 font-bold">
+                        {getTimelineIcon(evt.type)}
+                        {evt.title}
+                      </span>
+                      <span>{evt.timestamp}</span>
+                    </div>
+                    <p className="text-slate-300 text-[11px] leading-relaxed">{evt.description}</p>
+                    {evt.nodeId && (
+                      <div className="mt-1.5 flex justify-end">
+                        <span className="text-[8px] px-1.5 py-0.5 rounded bg-slate-800 border border-slate-750 text-slate-400 font-mono uppercase tracking-wider">
+                          Epicenter: {evt.nodeId}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="border-t border-slate-900 mt-3 pt-2 text-[10px] text-slate-500 flex justify-between font-mono">
+            <span>Recorded Incidents: {timelineEvents.length}</span>
+            <span>Buffer Status: Live Tracking</span>
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* 5. Fifth Grid: Recharts Forecast & Explainable Decisions */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Recharts Density Forecast Area Graph */}
+        <GlassCard className="xl:col-span-2 border-slate-800/80 bg-slate-900/40 p-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
             <div className="flex items-center space-x-3">
               <Activity className="w-5 h-5 text-brand-green" />
@@ -558,12 +919,12 @@ export const CommandCenter: React.FC = () => {
             </div>
           </div>
 
-          <div className="h-[280px] w-full">
+          <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={densityHistory} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="time" stroke="#64748b" fontSize={11} fontStyle="mono" />
-                <YAxis stroke="#64748b" fontSize={11} fontStyle="mono" domain={['dataMin - 150', 'dataMax + 150']} />
+                <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
+                <YAxis stroke="#64748b" fontSize={11} domain={['dataMin - 150', 'dataMax + 150']} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#020617', borderColor: '#334155', borderRadius: '12px' }}
                   labelStyle={{ color: '#fff', fontFamily: 'monospace' }}
@@ -586,49 +947,6 @@ export const CommandCenter: React.FC = () => {
           </div>
         </GlassCard>
 
-        {/* Live Incident Timeline Panel */}
-        <GlassCard className="border-slate-800 bg-slate-900/40 p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-            <div className="flex items-center space-x-2">
-              <Clock className="w-4 h-4 text-brand-red animate-pulse" />
-              <h3 className="font-semibold text-white text-sm">Incident Timeline Logs</h3>
-            </div>
-            <span className="text-[10px] text-slate-500 font-mono">REAL-TIME TELEMETRY</span>
-          </div>
-
-          <div className="space-y-3 overflow-y-auto max-h-[250px] pr-1 flex-1 font-mono text-[11px]">
-            {logs.length === 0 ? (
-              <div className="text-slate-500 text-center py-10">No incident logs loaded.</div>
-            ) : (
-              logs.slice(-6).reverse().map((log, idx) => (
-                <div key={log.id || idx} className="relative pl-4 border-l border-slate-800 pb-3 last:pb-0">
-                  {/* Glowing vertical marker node */}
-                  <div className={`absolute -left-1.5 top-1.5 w-3 h-3 rounded-full border-2 border-slate-950 ${
-                    log.level === 'CRITICAL' ? 'bg-brand-red shadow-glow-red' :
-                    log.level === 'WARNING' ? 'bg-yellow-500' : 'bg-brand-blue'
-                  }`}></div>
-                  <div className="flex justify-between items-center text-slate-500 text-[10px]">
-                    <span>{log.timestamp}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
-                      log.level === 'CRITICAL' ? 'bg-brand-red/10 text-brand-red' :
-                      log.level === 'WARNING' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-brand-blue/10 text-brand-blue'
-                    }`}>{log.level}</span>
-                  </div>
-                  <p className="text-slate-300 mt-1 text-xs leading-relaxed">{log.message}</p>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="border-t border-slate-900 mt-3 pt-2 text-[10px] text-slate-500 flex justify-between font-mono">
-            <span>Log Cache: {logs.length} entries</span>
-            <span>Buffer Status: Stable</span>
-          </div>
-        </GlassCard>
-      </div>
-
-      {/* 5. Bottom Row: Explainable Decision Panel & Strategy Comparison Matrix */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Explainable Decision Panel */}
         <GlassCard className="xl:col-span-1 border-slate-850 bg-slate-900/30 p-5 flex flex-col justify-between">
           <div>
@@ -639,7 +957,7 @@ export const CommandCenter: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-4 text-xs font-mono">
+            <div className="space-y-3.5 text-xs font-mono">
               <div>
                 <span className="text-[10px] text-slate-500 block">ACTIVE ALGORITHM</span>
                 <span className="text-sm font-black text-brand-blue">{smartDecision.selectedAlgorithm}</span>
@@ -659,16 +977,14 @@ export const CommandCenter: React.FC = () => {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-900">
-                <div>
-                  <span className="text-[9px] text-slate-500 block">COMPLEXITY COST</span>
-                  <span className="text-[11px] font-bold text-slate-300">{currentExplanation.cost}</span>
-                </div>
-                <div>
-                  <span className="text-[9px] text-slate-500 block">TRIGGER RULE</span>
-                  <span className="text-[10px] font-bold text-slate-400 truncate block" title={currentExplanation.constraints}>
-                    {currentExplanation.constraints}
-                  </span>
+              {/* Explainable Path Telemetry Details */}
+              <div className="border-t border-slate-900 pt-2.5 space-y-2">
+                <span className="text-[10px] text-slate-500 block">REAL-TIME ROUTE TELEMETRY</span>
+                <div className="grid grid-cols-2 gap-2 text-[10px] bg-slate-950 p-2 rounded border border-slate-900">
+                  <div>Path distance: <span className="text-white font-bold">{selectedPath.length > 0 ? `${selectedPath.length} nodes` : 'N/A'}</span></div>
+                  <div>Congested segments: <span className={routeCongestedNodes.length > 0 ? 'text-brand-red font-bold' : 'text-brand-green'}>{routeCongestedNodes.length}</span></div>
+                  <div>Threat zones hit: <span className={routeHazardsIntersect.length > 0 ? 'text-brand-red font-bold' : 'text-brand-green'}>{routeHazardsIntersect.length}</span></div>
+                  <div>Egress potential: <span className="text-brand-blue font-bold">{isEvacuationActive ? 'CRITICAL EVAC' : 'STANDARD'}</span></div>
                 </div>
               </div>
             </div>
@@ -679,8 +995,44 @@ export const CommandCenter: React.FC = () => {
             Decision rationale validated on live parameters.
           </div>
         </GlassCard>
+      </div>
 
-        {/* Strategy Comparison Matrix */}
+      {/* 6. Bottom Row: Strategy Comparison Matrix */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Recharts Strategy Comparison Bar Chart */}
+        <GlassCard className="xl:col-span-1 border-slate-800 bg-slate-900/40 p-5 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+              <div className="flex items-center space-x-2">
+                <Activity className="w-4 h-4 text-brand-blue" />
+                <h3 className="font-semibold text-white text-sm">Live Strategy Performance Benchmark</h3>
+              </div>
+            </div>
+
+            <div className="h-[240px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={comparisonData} margin={{ top: 10, right: 10, left: -15, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis dataKey="name" stroke="#64748b" fontSize={9} />
+                  <YAxis stroke="#64748b" fontSize={9} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#020617', borderColor: '#334155', borderRadius: '12px' }}
+                    labelStyle={{ color: '#fff', fontFamily: 'monospace' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '9px', fontFamily: 'monospace' }} />
+                  <Bar dataKey="Safety" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Efficiency" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Throughput" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-500 leading-normal font-mono mt-3">
+            Real-time scoring comparing 0-100 indicators. Hybrid outperforms under panic propagation states.
+          </p>
+        </GlassCard>
+
+        {/* Strategy Comparison Matrix Table */}
         <GlassCard className="xl:col-span-2 border-slate-800 bg-slate-900/40 p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">

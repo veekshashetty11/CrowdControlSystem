@@ -112,3 +112,22 @@ export interface SmartDecision {
   decisionConfidence: number;
 }
 
+export type TimelineEventType =
+  | 'HAZARD_INJECTED'
+  | 'PANIC_TRIGGERED'
+  | 'REROUTED'
+  | 'STAMPEDE_RISK_SPIKE'
+  | 'EVACUATION_STARTED'
+  | 'STABILIZED'
+  | 'CONGESTION_ALERT';
+
+export interface TimelineEvent {
+  id: string;
+  timestamp: string;
+  type: TimelineEventType;
+  title: string;
+  description: string;
+  nodeId?: string; // Epicenter node
+  routePath?: string[]; // Snapshot of route path
+}
+

@@ -1,5 +1,18 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import type { VenueNode, VenueEdge, LogEntry, AlgorithmStep, SimulationStats, HazardType, HazardEvent, PanicType, PanickedNode, SmartDecision } from '../types';
+import type { 
+  VenueNode, 
+  VenueEdge, 
+  LogEntry, 
+  AlgorithmStep, 
+  SimulationStats, 
+  HazardType, 
+  HazardEvent, 
+  PanicType, 
+  PanickedNode, 
+  SmartDecision,
+  TimelineEvent,
+  TimelineEventType
+} from '../types';
 import { findSafestPathAStar, computeMaxFlow, runTopologicalSort } from '../utils/algorithms';
 
 export interface HistoricalDensityPoint {
@@ -52,6 +65,9 @@ interface SimulationContextProps {
   smartDecision: SmartDecision;
   triggerPanicBFS: (nodeId: string, type: PanicType) => void;
   clearPanic: () => void;
+  timelineEvents: TimelineEvent[];
+  addTimelineEvent: (type: TimelineEventType, title: string, description: string, nodeId?: string, routePath?: string[]) => void;
+  peopleEvacuated: number;
 }
 
 const SimulationContext = createContext<SimulationContextProps | undefined>(undefined);
@@ -201,6 +217,30 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     decisionConfidence: 98,
   });
 
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([
+    {
+      id: 'init-event',
+      timestamp: new Date().toLocaleTimeString(),
+      type: 'STABILIZED',
+      title: 'Command AI Initialized',
+      description: 'Dynamic incident logger and rule-based AI routing coordinator active.'
+    }
+  ]);
+  const [peopleEvacuated, setPeopleEvacuated] = useState<number>(0);
+
+  const addTimelineEvent = (type: TimelineEventType, title: string, description: string, nodeId?: string, routePath?: string[]) => {
+    const newEvent: TimelineEvent = {
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toLocaleTimeString(),
+      type,
+      title,
+      description,
+      nodeId,
+      routePath
+    };
+    setTimelineEvents(prev => [newEvent, ...prev].slice(0, 100));
+  };
+
   const triggerPanicBFS = (nodeId: string, type: PanicType) => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
@@ -219,14 +259,17 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setIsRunning(true);
 
     addLog('CRITICAL', `🚨 PANIC ROOT DETECTED: ${type} panic spreading from ${node.name}! BFS propagation active. Egress speed increased, routing adjustments initiated.`);
+    addTimelineEvent('PANIC_TRIGGERED', `${type} PANIC TRIGGERED`, `${type} panic epicenter established at ${node.name}. BFS propagation spreading outwards.`, nodeId);
   };
 
   const clearPanic = () => {
     setPanickedNodes({});
     addLog('INFO', '✅ Panic cleared. Venue crowd behavior stabilized.');
+    addTimelineEvent('STABILIZED', 'Panic Stabilized', 'All panic levels normalized and crowd behavioral parameters stabilized.');
   };
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const evacCompletedLoggedRef = useRef(false);
 
   // Helper to add logs
   const addLog = (level: 'INFO' | 'WARNING' | 'CRITICAL', message: string) => {
@@ -341,6 +384,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setIsEvacuationActive(true);
     setIsRunning(true);
     addLog('CRITICAL', '🔴 EMERGENCY EVACUATION ACTIVE! Initiating egress protocols...');
+    addTimelineEvent('EVACUATION_STARTED', 'Emergency Evacuation Initiated', 'Evacuation protocols triggered. Algorithmic schedulers computing bottleneck routes.');
 
     // Run Max Flow
     const entries = nodes.filter(n => n.type === 'HALL' || n.type === 'CORRIDOR').map(n => n.id);
@@ -367,7 +411,9 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const cancelEvacuation = () => {
     setIsEvacuationActive(false);
+    evacCompletedLoggedRef.current = false;
     addLog('INFO', 'Emergency evacuation stood down. Returning to normal operations.');
+    addTimelineEvent('STABILIZED', 'Evacuation Stood Down', 'Emergency evacuation mode deactivated. Normal operations resumed.');
     setActiveAlgorithm(null);
   };
 
@@ -447,6 +493,18 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       STRUCTURAL_COLLAPSE: '💀 STRUCTURAL COLLAPSE',
     };
     addLog('CRITICAL', `${labels[type]} at ${node.name}! Severity ${severity}/5. Rerouting initiated.`);
+    
+    // Auto-timeline log for hazard injection
+    const timelineTypes: Record<HazardType, TimelineEventType> = {
+      FIRE: 'HAZARD_INJECTED',
+      SMOKE: 'HAZARD_INJECTED',
+      BLOCKED_CORRIDOR: 'CONGESTION_ALERT',
+      MEDICAL_EMERGENCY: 'CONGESTION_ALERT',
+      POWER_FAILURE: 'CONGESTION_ALERT',
+      FLOOD: 'HAZARD_INJECTED',
+      STRUCTURAL_COLLAPSE: 'HAZARD_INJECTED'
+    };
+    addTimelineEvent(timelineTypes[type], `${type} INCIDENT INJECTED`, `${labels[type]} triggered at ${node.name} with severity index ${severity}/5. Adaptive routes computed.`, nodeId);
   };
 
   const clearHazard = (hazardId: string) => {
@@ -462,6 +520,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }));
     setActiveHazards(prev => prev.filter(h => h.id !== hazardId));
     addLog('INFO', `Hazard ${hazard.type} at node ${hazard.nodeId} cleared. Routing restored.`);
+    addTimelineEvent('STABILIZED', `${hazard.type} Cleared`, `All hazard parameters for ${hazard.type} at sector ${hazard.nodeId} have been resolved. Corridors stabilized.`, hazard.nodeId);
   };
 
   const clearAllHazards = () => {
@@ -480,6 +539,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     ));
     setActiveHazards([]);
     addLog('INFO', 'All hazards cleared. Venue restored to normal operations.');
+    addTimelineEvent('STABILIZED', 'All Hazards Cleared', 'All active emergency hazard zones have been successfully cleared. Pathfinding returned to baseline.');
   };
 
   // Periodic Simulation loop
@@ -524,6 +584,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
 
       // 2. Perform node crowd density movement
+      let stepEvacuated = 0;
       setNodes(prevNodes => {
         const nodeMap = new Map(prevNodes.map(n => [n.id, n]));
         const nextNodes = prevNodes.map(n => ({ ...n }));
@@ -574,6 +635,9 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             const drainRate = isEvacuationActive ? 0.35 : 0.15;
             const drained = node.currentDensity * drainRate * simulationSpeed;
             node.currentDensity = parseFloat(Math.max(0, node.currentDensity - drained).toFixed(1));
+            if (isEvacuationActive) {
+              stepEvacuated += drained;
+            }
           }
         });
 
@@ -597,8 +661,10 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
           if (densityRatio >= 0.9 && prevDensityRatio < 0.9) {
             addLog('CRITICAL', `🔥 Overcapacity Alert! ${node.name} is at ${Math.round(densityRatio * 100)}% capacity (${node.currentDensity}/${node.capacity}).`);
+            addTimelineEvent('CONGESTION_ALERT', 'Critical Overcapacity', `${node.name} is critically packed at ${Math.round(densityRatio * 100)}% capacity.`, node.id);
           } else if (densityRatio >= threshDecimal && prevDensityRatio < threshDecimal) {
             addLog('WARNING', `⚠️ High density warning at ${node.name}: ${Math.round(densityRatio * 100)}% capacity.`);
+            addTimelineEvent('CONGESTION_ALERT', 'Congestion Threshold Cross', `${node.name} density has crossed threshold at ${Math.round(densityRatio * 100)}%.`, node.id);
           }
         });
 
@@ -620,6 +686,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 setTimeout(() => {
                   setSelectedPath(res.path);
                   addLog('WARNING', `🔄 Auto-Reroute Triggered: Path congestion exceeded threshold. Recomputed safest path: ${res.path.join(' ➔ ')}`);
+                  addTimelineEvent('REROUTED', 'Path Redirected', `Path congestion exceeded limit. Rerouted to safer corridor: ${res.path[0]} ➔ ${res.path[res.path.length-1]} bypass.`, res.path[0], res.path);
                 }, 0);
               }
             }
@@ -628,6 +695,10 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         return nextNodes;
       });
+
+      if (stepEvacuated > 0) {
+        setPeopleEvacuated(prev => prev + Math.round(stepEvacuated));
+      }
     }, intervalTime);
 
     return () => {
@@ -696,14 +767,26 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (riskLevel !== prevRiskLevelRef.current) {
       if (riskLevel === 'CRITICAL') {
         addLog('CRITICAL', `🚨 STAMPEDE RISK CRITICAL! Score: ${riskScore}/100. Probability: ${stampedeProbability}%. Immediate evacuation recommended.`);
+        addTimelineEvent('STAMPEDE_RISK_SPIKE', 'Stampede Risk Critical', `Stampede risk score has reached ${riskScore}/100. Probability ${stampedeProbability}%.`);
       } else if (riskLevel === 'HIGH') {
         addLog('WARNING', `⚠️ High stampede risk detected! Score: ${riskScore}/100. ${bottleneckCount} bottleneck(s) active. Monitor and prepare evacuation routes.`);
+        addTimelineEvent('STAMPEDE_RISK_SPIKE', 'Stampede Risk High', `High stampede risk detected. Bottlenecks active: ${bottleneckCount}.`);
       } else if (riskLevel === 'MODERATE' && prevRiskLevelRef.current !== 'SAFE') {
         addLog('INFO', `✅ Stampede risk reduced to Moderate. Score: ${riskScore}/100. Situation stabilizing.`);
+        addTimelineEvent('STABILIZED', 'Stampede Risk Reduced', `Stampede risk stabilized to Moderate (Score: ${riskScore}/100).`);
       } else if (riskLevel === 'SAFE') {
         addLog('INFO', `✅ Stampede risk cleared. Score: ${riskScore}/100. All zones within safe parameters.`);
+        addTimelineEvent('STABILIZED', 'Stampede Risk Cleared', 'Stampede risk cleared. All sectors normal.');
       }
       prevRiskLevelRef.current = riskLevel;
+    }
+
+    // Evacuation complete check
+    if (isEvacuationActive && totalCrowd < 50 && !evacCompletedLoggedRef.current) {
+      addTimelineEvent('STABILIZED', 'Evacuation Completed', 'All venue sectors have been successfully cleared. Occupants evacuated.');
+      evacCompletedLoggedRef.current = true;
+    } else if (!isEvacuationActive) {
+      evacCompletedLoggedRef.current = false;
     }
 
     setStats({
@@ -914,6 +997,9 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       smartDecision,
       triggerPanicBFS,
       clearPanic,
+      timelineEvents,
+      addTimelineEvent,
+      peopleEvacuated,
     }}>
       {children}
     </SimulationContext.Provider>
