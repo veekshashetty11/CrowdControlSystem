@@ -17,6 +17,7 @@ import { MaxFlowVisualizer } from './pages/MaxFlowVisualizer';
 import { DigitalTwin } from './pages/DigitalTwin';
 import { HazardControl } from './pages/HazardControl';
 import { WhatIfSimulation } from './pages/WhatIfSimulation';
+import { CommandCenter } from './pages/CommandCenter';
 
 
 const pageVariants = {
@@ -39,6 +40,7 @@ const AppContent: React.FC = () => {
       case 'max-flow':         return <MaxFlowVisualizer />;
       case 'evacuation':       return <EvacuationCenter />;
       case 'simulation':       return <SimulationControl />;
+      case 'command-center':   return <CommandCenter />;
       case 'digital-twin':     return <DigitalTwin />;
       case 'hazard-control':   return <HazardControl />;
       case 'whatif':           return <WhatIfSimulation />;

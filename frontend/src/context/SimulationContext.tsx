@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import type { VenueNode, VenueEdge, LogEntry, AlgorithmStep, SimulationStats, HazardType, HazardEvent } from '../types';
+import type { VenueNode, VenueEdge, LogEntry, AlgorithmStep, SimulationStats, HazardType, HazardEvent, PanicType, PanickedNode, SmartDecision } from '../types';
 import { findSafestPathAStar, computeMaxFlow, runTopologicalSort } from '../utils/algorithms';
+
+export interface HistoricalDensityPoint {
+  time: string;
+  density: number;
+  predictedMA: number;
+  predictedES: number;
+  predictedTE: number;
+}
 
 interface SimulationContextProps {
   nodes: VenueNode[];
@@ -38,6 +46,12 @@ interface SimulationContextProps {
   injectHazard: (nodeId: string, type: HazardType, severity?: number) => void;
   clearHazard: (hazardId: string) => void;
   clearAllHazards: () => void;
+  // ── Predictive, Panic & Smart Decision Systems (Phase 2) ──────────────────
+  densityHistory: HistoricalDensityPoint[];
+  panickedNodes: Record<string, PanickedNode>;
+  smartDecision: SmartDecision;
+  triggerPanicBFS: (nodeId: string, type: PanicType) => void;
+  clearPanic: () => void;
 }
 
 const SimulationContext = createContext<SimulationContextProps | undefined>(undefined);
@@ -170,10 +184,47 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     stampedeProbability: 28,
   });
   const prevRiskLevelRef = useRef<string>('MODERATE');
+  const prevAlgorithmRef = useRef<string>('A* Search');
   const [routeSourceId, setRouteSourceId] = useState<string | null>(null);
   const [routeDestId, setRouteDestId] = useState<string | null>(null);
 
   const [activeHazards, setActiveHazards] = useState<HazardEvent[]>([]);
+
+  // ── Phase 2 States ────────────────────────────────────────────────────────
+  const [densityHistory, setDensityHistory] = useState<HistoricalDensityPoint[]>([]);
+  const [panickedNodes, setPanickedNodes] = useState<Record<string, PanickedNode>>({});
+  const [smartDecision, setSmartDecision] = useState<SmartDecision>({
+    selectedAlgorithm: 'A* Search',
+    situation: 'Normal Operations',
+    reason: 'Normal low-density routing. Standard A* pathfinding calculates the shortest physical distance paths.',
+    estimatedImprovement: 0,
+    decisionConfidence: 98,
+  });
+
+  const triggerPanicBFS = (nodeId: string, type: PanicType) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    setPanickedNodes(prev => ({
+      ...prev,
+      [nodeId]: {
+        nodeId,
+        level: 100,
+        sourceType: type,
+      }
+    }));
+
+    // Trigger evacuation as panic is a critical threat!
+    setIsEvacuationActive(true);
+    setIsRunning(true);
+
+    addLog('CRITICAL', `🚨 PANIC ROOT DETECTED: ${type} panic spreading from ${node.name}! BFS propagation active. Egress speed increased, routing adjustments initiated.`);
+  };
+
+  const clearPanic = () => {
+    setPanickedNodes({});
+    addLog('INFO', '✅ Panic cleared. Venue crowd behavior stabilized.');
+  };
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -194,6 +245,25 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setLogs([]);
   };
 
+  // Pre-populate density history with baseline values on mount
+  useEffect(() => {
+    const now = Date.now();
+    const historyPoints: HistoricalDensityPoint[] = [];
+    const baseCrowd = 4570;
+    for (let i = 12; i >= 0; i--) {
+      const timeStr = new Date(now - i * 3000).toLocaleTimeString();
+      const densityVal = Math.round(baseCrowd + (Math.random() - 0.5) * 100);
+      historyPoints.push({
+        time: timeStr,
+        density: densityVal,
+        predictedMA: densityVal,
+        predictedES: densityVal,
+        predictedTE: densityVal,
+      });
+    }
+    setDensityHistory(historyPoints);
+  }, []);
+
   // Reset Simulation state
   const resetSimulation = () => {
     setNodes(initialNodes.map(n => ({ ...n })));
@@ -205,6 +275,25 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setActiveAlgorithm(null);
     setRouteSourceId(null);
     setRouteDestId(null);
+    setPanickedNodes({});
+    
+    // Reset density history
+    const now = Date.now();
+    const historyPoints: HistoricalDensityPoint[] = [];
+    const baseCrowd = 4570;
+    for (let i = 12; i >= 0; i--) {
+      const timeStr = new Date(now - i * 3000).toLocaleTimeString();
+      const densityVal = Math.round(baseCrowd + (Math.random() - 0.5) * 100);
+      historyPoints.push({
+        time: timeStr,
+        density: densityVal,
+        predictedMA: densityVal,
+        predictedES: densityVal,
+        predictedTE: densityVal,
+      });
+    }
+    setDensityHistory(historyPoints);
+
     setLogs([
       { id: Math.random().toString(), timestamp: new Date().toLocaleTimeString(), level: 'INFO', message: 'Simulation reset to default parameters.' }
     ]);
@@ -400,11 +489,46 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const intervalTime = 3000 / simulationSpeed;
 
     timerRef.current = setInterval(() => {
+      // 1. First spread panic levels via BFS (runs at each simulation step)
+      setPanickedNodes(prevPanic => {
+        if (Object.keys(prevPanic).length === 0) return prevPanic;
+        const nextPanic = { ...prevPanic };
+        let expanded = false;
+
+        // BFS: For all active panic nodes, spread to neighbors at -25 level
+        Object.entries(prevPanic).forEach(([nodeId, pNode]) => {
+          if (pNode.level > 0) {
+            const neighbors = edges
+              .filter(e => e.source === nodeId || e.target === nodeId)
+              .map(e => e.source === nodeId ? e.target : e.source);
+
+            neighbors.forEach(neighborId => {
+              const newLevel = Math.max(0, pNode.level - 25);
+              if (newLevel > 0 && (!nextPanic[neighborId] || nextPanic[neighborId].level < newLevel)) {
+                nextPanic[neighborId] = {
+                  nodeId: neighborId,
+                  level: newLevel,
+                  sourceType: pNode.sourceType
+                };
+                expanded = true;
+              }
+            });
+          }
+        });
+
+        if (expanded) {
+          // Trigger logs once in a while or when expansion spreads
+        }
+
+        return nextPanic;
+      });
+
+      // 2. Perform node crowd density movement
       setNodes(prevNodes => {
         const nodeMap = new Map(prevNodes.map(n => [n.id, n]));
         const nextNodes = prevNodes.map(n => ({ ...n }));
 
-        // 1. Influx: Random arrivals at entry gates (unless in evacuation)
+        // A. Influx: Random arrivals at entry gates (unless in evacuation)
         if (!isEvacuationActive) {
           nextNodes.forEach(node => {
             if (node.type === 'ENTRY_GATE') {
@@ -415,18 +539,24 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           });
         }
 
-        // 2. Outflux propagation along edges
+        // B. Outflux propagation along edges (influenced by panic speed factors)
         edges.forEach(edge => {
           const src = nextNodes.find(n => n.id === edge.source);
           const dest = nextNodes.find(n => n.id === edge.target);
 
           if (src && dest) {
+            // Check panic modifier: if source or target node is panicked, speed increases by 1.8x
+            const srcPanic = panickedNodes[edge.source];
+            const destPanic = panickedNodes[edge.target];
+            const isPanicked = (srcPanic && srcPanic.level > 0) || (destPanic && destPanic.level > 0);
+            const speedFactor = isPanicked ? 1.8 : 1.0;
+
             // How much wants to flow: 12% of source density, capped by edge capacity
-            let flowAmount = Math.min(src.currentDensity * 0.12, edge.capacity * 0.15 * simulationSpeed);
+            let flowAmount = Math.min(src.currentDensity * 0.12 * speedFactor, edge.capacity * 0.15 * simulationSpeed * speedFactor);
             
             // Adjust flow in evacuation mode towards exit
             if (isEvacuationActive) {
-              flowAmount = Math.min(src.currentDensity * 0.20, edge.capacity * 0.3 * simulationSpeed);
+              flowAmount = Math.min(src.currentDensity * 0.20 * speedFactor, edge.capacity * 0.3 * simulationSpeed * speedFactor);
             }
 
             // Prevent overloading destination beyond capacity
@@ -438,7 +568,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           }
         });
 
-        // 3. Drainage: Exits (and Gates in evacuation mode) evacuate people out of the venue
+        // C. Drainage: Exits (and Gates in evacuation mode) evacuate people out of the venue
         nextNodes.forEach(node => {
           if (node.type === 'EMERGENCY_EXIT' || (node.type === 'ENTRY_GATE' && isEvacuationActive)) {
             const drainRate = isEvacuationActive ? 0.35 : 0.15;
@@ -447,10 +577,12 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           }
         });
 
-        // 4. Realistic random fluctuations
+        // D. Realistic random fluctuations (increased by 2.5x under panic)
         nextNodes.forEach(node => {
           if (node.type !== 'EMERGENCY_EXIT') {
-            const fluctuation = (Math.random() - 0.5) * 12 * crowdSizeMultiplier; // -6 to +6 people
+            const pNode = panickedNodes[node.id];
+            const panicModifier = pNode ? 1.0 + (pNode.level / 100) * 1.5 : 1.0;
+            const fluctuation = (Math.random() - 0.5) * 12 * crowdSizeMultiplier * panicModifier;
             node.currentDensity = parseFloat(Math.max(0, Math.min(node.capacity, node.currentDensity + fluctuation)).toFixed(1));
           }
         });
@@ -470,7 +602,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           }
         });
 
-        // 5. Automatic Congestion Rerouting Check
+        // E. Automatic Congestion Rerouting Check
         if (routeSourceId && routeDestId && selectedPath.length > 0) {
           const threshDecimal = densityThreshold / 100;
           const isCongested = selectedPath.some(nodeId => {
@@ -501,29 +633,33 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isRunning, isEvacuationActive, edges, simulationSpeed, crowdSizeMultiplier, densityThreshold, routeSourceId, routeDestId, selectedPath]);
+  }, [isRunning, isEvacuationActive, edges, simulationSpeed, crowdSizeMultiplier, densityThreshold, routeSourceId, routeDestId, selectedPath, panickedNodes]);
 
-  // Recalculate global stats and edge dynamic weights whenever nodes density updates
+  // Recalculate global stats, edge dynamic weights, predictions, and smart decisions whenever nodes density updates
   useEffect(() => {
     const totalCrowd = Math.round(nodes.reduce((sum, n) => sum + n.currentDensity, 0));
     const activeZones = nodes.filter(n => n.currentDensity > 10).length;
     const congestedAreas = nodes.filter(n => (n.currentDensity / n.capacity) * 100 >= densityThreshold).length;
 
     // === STAMPEDE RISK PREDICTOR ===
-    // Component 1: Average density ratio across all non-exit nodes
     const nonExitNodes = nodes.filter(n => n.type !== 'EMERGENCY_EXIT');
     const avgDensityRatio = nonExitNodes.reduce((sum, n) => sum + (n.currentDensity / n.capacity), 0) / Math.max(nonExitNodes.length, 1);
 
-    // Update edge weights dynamically (congestion-aware routing penalty)
+    // Update edge weights dynamically
     const updatedEdges = edges.map(edge => {
       const dest = nodes.find(n => n.id === edge.target);
       if (!dest) return edge;
       
       const ratio = dest.currentDensity / dest.capacity;
+      
+      // If either node is panicked, ignore longer routes (penalty is 0) to prefer closest physical exits
+      const isPanicked = panickedNodes[edge.source] || panickedNodes[edge.target];
       let penalty = 0;
-      if (ratio >= 0.9) penalty = 1000.0;
-      else if (ratio >= 0.7) penalty = 300.0;
-      else if (ratio >= 0.5) penalty = 50.0;
+      if (!isPanicked) {
+        if (ratio >= 0.9) penalty = 1000.0;
+        else if (ratio >= 0.7) penalty = 300.0;
+        else if (ratio >= 0.5) penalty = 50.0;
+      }
 
       return {
         ...edge,
@@ -532,24 +668,23 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       };
     });
 
-    // Component 2: Max flow utilization across all updated edges
     const maxFlowUtilization = updatedEdges.reduce((max, e) => {
       const util = e.capacity > 0 ? e.currentFlow / e.capacity : 0;
       return Math.max(max, util);
     }, 0);
 
-    // Component 3: Bottleneck count (updated edges >= 90% utilized)
     const bottleneckCount = updatedEdges.filter(e => e.capacity > 0 && (e.currentFlow / e.capacity) >= 0.9).length;
 
-    // Composite risk score: weighted formula
     const densityComponent = avgDensityRatio * 45;
     const flowComponent = maxFlowUtilization * 35;
     const bottleneckComponent = Math.min(bottleneckCount * 10, 20);
     const riskScore = Math.round(Math.min(100, densityComponent + flowComponent + bottleneckComponent));
 
-    // Stampede probability: adjusted weighted score with peak load amplifier
+    // Panic amplification to stampede probability
     const peakLoad = Math.max(...nodes.map(n => n.currentDensity / n.capacity));
-    const stampedeProbability = Math.round(Math.min(100, riskScore * 0.6 + peakLoad * 40));
+    const panickedCount = Object.keys(panickedNodes).length;
+    const panicRatio = panickedCount / Math.max(1, nodes.length);
+    const stampedeProbability = Math.round(Math.min(100, riskScore * 0.6 + peakLoad * 40 + panicRatio * 20));
 
     // Determine risk level
     let riskLevel: 'SAFE' | 'MODERATE' | 'HIGH' | 'CRITICAL' = 'SAFE';
@@ -557,7 +692,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     else if (riskScore >= 60) riskLevel = 'HIGH';
     else if (riskScore >= 35) riskLevel = 'MODERATE';
 
-    // Trigger early-warning alerts on risk level transitions
+    // Trigger early-warning alerts
     if (riskLevel !== prevRiskLevelRef.current) {
       if (riskLevel === 'CRITICAL') {
         addLog('CRITICAL', `🚨 STAMPEDE RISK CRITICAL! Score: ${riskScore}/100. Probability: ${stampedeProbability}%. Immediate evacuation recommended.`);
@@ -585,7 +720,158 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     setEdges(updatedEdges);
 
-  }, [nodes, densityThreshold]);
+    // ── Update densityHistory & Compute predictions ─────────────────────────
+    setDensityHistory(prev => {
+      const timeStr = new Date().toLocaleTimeString();
+      const newPointBase = {
+        time: timeStr,
+        density: totalCrowd,
+        predictedMA: totalCrowd,
+        predictedES: totalCrowd,
+        predictedTE: totalCrowd,
+      };
+
+      const newHistory = [...prev.filter(pt => !pt.time.startsWith('+')), newPointBase].slice(-20);
+      const m = newHistory.length;
+
+      // 1. Moving Average (N=4)
+      const N = Math.min(4, m);
+      const lastN = newHistory.slice(-N);
+      const maVal = lastN.reduce((sum, p) => sum + p.density, 0) / N;
+      
+      // Calculate MA slope over last 3 points
+      let maSlope = 0;
+      if (m >= 3) {
+        const prevMA = newHistory.slice(-3, -1).reduce((sum, p) => sum + p.density, 0) / 2;
+        maSlope = (maVal - prevMA) / 2;
+      }
+
+      // 2. Exponential Smoothing (alpha=0.35, beta=0.2)
+      let esVal = newHistory[0].density;
+      let esTrend = 0;
+      for (let i = 1; i < m; i++) {
+        const prevEs = esVal;
+        esVal = 0.35 * newHistory[i].density + 0.65 * prevEs;
+        esTrend = 0.2 * (esVal - prevEs) + 0.8 * esTrend;
+      }
+
+      // 3. Trend Estimation (Linear Regression on last 5 points)
+      const numPoints = Math.min(5, m);
+      const regPoints = newHistory.slice(-numPoints);
+      let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+      for (let i = 0; i < numPoints; i++) {
+        const x = i + 1;
+        const y = regPoints[i].density;
+        sumX += x;
+        sumY += y;
+        sumXY += x * y;
+        sumXX += x * x;
+      }
+      const denominator = (numPoints * sumXX - sumX * sumX);
+      const slope = denominator !== 0 ? (numPoints * sumXY - sumX * sumY) / denominator : 0;
+
+      // Generate future forecast points
+      // +30s (+10 ticks), +1m (+20 ticks), +2m (+40 ticks)
+      const f30 = {
+        time: '+30s',
+        density: null as any,
+        predictedMA: Math.max(0, Math.round(totalCrowd + 10 * maSlope)),
+        predictedES: Math.max(0, Math.round(esVal + 10 * esTrend)),
+        predictedTE: Math.max(0, Math.round(totalCrowd + 10 * slope)),
+      };
+
+      const f1m = {
+        time: '+1m',
+        density: null as any,
+        predictedMA: Math.max(0, Math.round(totalCrowd + 20 * maSlope)),
+        predictedES: Math.max(0, Math.round(esVal + 20 * esTrend)),
+        predictedTE: Math.max(0, Math.round(totalCrowd + 20 * slope)),
+      };
+
+      const f2m = {
+        time: '+2m',
+        density: null as any,
+        predictedMA: Math.max(0, Math.round(totalCrowd + 40 * maSlope)),
+        predictedES: Math.max(0, Math.round(esVal + 40 * esTrend)),
+        predictedTE: Math.max(0, Math.round(totalCrowd + 40 * slope)),
+      };
+
+      return [...newHistory, f30, f1m, f2m];
+    });
+
+    // ── Smart Decision Engine rules ──────────────────────────────────────────
+    const hasHazards = activeHazards.length > 0;
+    const congestedCount = congestedAreas;
+    const hasBlocked = edges.some(e => e.distance > 900000);
+
+    let selectedAlgorithm = 'A* Search';
+    let situation = 'Normal Operations';
+    let reason = 'Normal low-density routing. Standard A* pathfinding calculates the shortest physical distance paths.';
+    let estimatedImprovement = 0;
+    let decisionConfidence = 98;
+
+    if (hasHazards && panickedCount >= 3) {
+      selectedAlgorithm = 'Hybrid Routing (A* + Max Flow)';
+      situation = 'Multi-Hazard Emergency & Panic Spread';
+      reason = 'Combining Ford-Fulkerson bottleneck capacity limits with local A* shortest paths to avoid active fire/explosion zones.';
+      estimatedImprovement = 45;
+      decisionConfidence = 92;
+    } else if (riskLevel === 'CRITICAL') {
+      selectedAlgorithm = 'Ford-Fulkerson + A*';
+      situation = 'Critical Venue Crowding';
+      reason = 'Maximum flow solver identifies escape throughput bottlenecks, while A* routes individual cohorts along lowest-risk paths.';
+      estimatedImprovement = 38;
+      decisionConfidence = 89;
+    } else if (isEvacuationActive && panickedCount > 0) {
+      selectedAlgorithm = 'BFS Evacuation Scheduling';
+      situation = 'Active Evacuation with Panic';
+      reason = 'Multi-source BFS establishes wave-based egress scheduling, ordering evacuation from the closest panicked zones outward.';
+      estimatedImprovement = 32;
+      decisionConfidence = 85;
+    } else if (hasBlocked) {
+      selectedAlgorithm = 'A* Search (Congestion-Bypass)';
+      situation = 'Corridor Blockages Detected';
+      reason = 'Bypasses blocked corridors by dynamically setting affected edge weights to infinity and finding alternative routes.';
+      estimatedImprovement = 25;
+      decisionConfidence = 95;
+    } else if (congestedCount >= 3) {
+      selectedAlgorithm = 'Ford-Fulkerson (Max Flow)';
+      situation = 'Heavy Congestion';
+      reason = 'Solves the max flow capacity problem over the entire network to redistribute flow away from saturated corridors.';
+      estimatedImprovement = 20;
+      decisionConfidence = 88;
+    } else if (isEvacuationActive) {
+      selectedAlgorithm = 'BFS Scheduling';
+      situation = 'Active Evacuation';
+      reason = 'BFS calculates optimal ordering of node drainage to avoid bottlenecks at exit gates.';
+      estimatedImprovement = 15;
+      decisionConfidence = 90;
+    }
+
+    if (selectedAlgorithm !== prevAlgorithmRef.current) {
+      addLog('INFO', `🤖 Smart Decision Engine switched routing core to: ${selectedAlgorithm} (${situation}).`);
+      
+      // Update the active algorithm structure in global state for HUD panels
+      setActiveAlgorithm({
+        name: selectedAlgorithm,
+        complexity: selectedAlgorithm.includes('Ford') ? 'O(E * max_flow)' : 'O(E log V)',
+        visitedNodes: nodes.map(n => n.id),
+        executionTime: 0.12,
+        decision: reason
+      });
+
+      prevAlgorithmRef.current = selectedAlgorithm;
+    }
+
+    setSmartDecision({
+      selectedAlgorithm,
+      situation,
+      reason,
+      estimatedImprovement,
+      decisionConfidence,
+    });
+
+  }, [nodes, densityThreshold, activeHazards, isEvacuationActive, panickedNodes]);
 
   return (
     <SimulationContext.Provider value={{
@@ -623,6 +909,11 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       injectHazard,
       clearHazard,
       clearAllHazards,
+      densityHistory,
+      panickedNodes,
+      smartDecision,
+      triggerPanicBFS,
+      clearPanic,
     }}>
       {children}
     </SimulationContext.Provider>

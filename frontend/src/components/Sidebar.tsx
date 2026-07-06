@@ -12,9 +12,23 @@ import {
   Tv2,
   TriangleAlert,
   FlaskConical,
+  Radio,
 } from 'lucide-react';
 
-export type TabId = 'dashboard' | 'live-map' | 'heatmap' | 'crowd-analytics' | 'route-optimizer' | 'max-flow' | 'evacuation' | 'simulation' | 'settings' | 'digital-twin' | 'hazard-control' | 'whatif';
+export type TabId = 
+  | 'dashboard' 
+  | 'live-map' 
+  | 'heatmap' 
+  | 'crowd-analytics' 
+  | 'route-optimizer' 
+  | 'max-flow' 
+  | 'evacuation' 
+  | 'simulation' 
+  | 'settings' 
+  | 'digital-twin' 
+  | 'hazard-control' 
+  | 'whatif'
+  | 'command-center';
 
 interface SidebarProps {
   activeTab: TabId;
@@ -39,6 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isEva
     { id: 'evacuation', label: 'Evacuation Center', icon: ShieldAlert },
     { id: 'simulation', label: 'Simulation Control', icon: Play },
     // ── New features ───────────────────────────────────────────
+    { id: 'command-center', label: 'Command Center', icon: Radio },
     { id: 'digital-twin', label: 'Digital Twin', icon: Tv2 },
     { id: 'hazard-control', label: 'Hazard Control', icon: TriangleAlert },
     { id: 'whatif', label: 'What-If Simulation', icon: FlaskConical },

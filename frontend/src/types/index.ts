@@ -93,3 +93,22 @@ export interface HazardEvent {
   originalEdgeDistances: Record<string, number>;
   originalEdgeCapacities: Record<string, number>;
 }
+
+// ─── Panic & Smart Decision Systems (Phase 2 Extensions) ─────────────────────
+
+export type PanicType = 'FIRE' | 'SMOKE' | 'EXPLOSION';
+
+export interface PanickedNode {
+  nodeId: string;
+  level: number; // 0 to 100
+  sourceType: PanicType;
+}
+
+export interface SmartDecision {
+  selectedAlgorithm: string;
+  situation: string;
+  reason: string;
+  estimatedImprovement: number;
+  decisionConfidence: number;
+}
+
