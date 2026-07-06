@@ -1,0 +1,212 @@
+[
+  {
+    "id": "TC1",
+    "label": "TC1 — Linear, Low Crowd",
+    "scenario": "Small venue, low crowd (30% load). Normal flow, minimal congestion.",
+    "graphInfo": {
+      "nodes": 5,
+      "edges": 4,
+      "sources": 1,
+      "sinks": 1
+    },
+    "crowdStats": {
+      "totalCrowd": 219,
+      "totalCap": 2400,
+      "congested": 0,
+      "critical": 0,
+      "avgLoad": 9,
+      "bottlenecks": 0
+    },
+    "astar": {
+      "src": "G1",
+      "snk": "E1",
+      "hops": 5,
+      "path": "G1 → H1 → C1 → H2 → E1",
+      "cost": 90,
+      "visitedNodes": 5,
+      "timeMs": 0.104,
+      "found": true
+    },
+    "maxFlow": {
+      "throughput": 150,
+      "timeMs": 0.15
+    },
+    "evacTimeSec": 1,
+    "evacTimeMin": 0.02
+  },
+  {
+    "id": "TC2",
+    "label": "TC2 — Linear, High Crowd",
+    "scenario": "Small venue, near-capacity (95% load). Severe bottleneck on single corridor.",
+    "graphInfo": {
+      "nodes": 5,
+      "edges": 4,
+      "sources": 1,
+      "sinks": 1
+    },
+    "crowdStats": {
+      "totalCrowd": 694,
+      "totalCap": 2400,
+      "congested": 0,
+      "critical": 0,
+      "avgLoad": 29,
+      "bottlenecks": 0
+    },
+    "astar": {
+      "src": "G1",
+      "snk": "E1",
+      "hops": 5,
+      "path": "G1 → H1 → C1 → H2 → E1",
+      "cost": 90,
+      "visitedNodes": 5,
+      "timeMs": 0.024,
+      "found": true
+    },
+    "maxFlow": {
+      "throughput": 150,
+      "timeMs": 0.069
+    },
+    "evacTimeSec": 5,
+    "evacTimeMin": 0.08
+  },
+  {
+    "id": "TC3",
+    "label": "TC3 — Fork, Medium Crowd",
+    "scenario": "Medium venue 10 nodes, 50% load. Moderate congestion in Arena.",
+    "graphInfo": {
+      "nodes": 10,
+      "edges": 14,
+      "sources": 2,
+      "sinks": 2
+    },
+    "crowdStats": {
+      "totalCrowd": 1155,
+      "totalCap": 6100,
+      "congested": 0,
+      "critical": 0,
+      "avgLoad": 19,
+      "bottlenecks": 0
+    },
+    "astar": {
+      "src": "G1",
+      "snk": "E1",
+      "hops": 4,
+      "path": "G1 → H1 → C1 → E1",
+      "cost": 100,
+      "visitedNodes": 4,
+      "timeMs": 0.009,
+      "found": true
+    },
+    "maxFlow": {
+      "throughput": 700,
+      "timeMs": 0.052
+    },
+    "evacTimeSec": 2,
+    "evacTimeMin": 0.03
+  },
+  {
+    "id": "TC4",
+    "label": "TC4 — Fork, Stress Test",
+    "scenario": "Medium venue 10 nodes, 90% load. Multiple critical zones, complex rerouting.",
+    "graphInfo": {
+      "nodes": 10,
+      "edges": 14,
+      "sources": 2,
+      "sinks": 2
+    },
+    "crowdStats": {
+      "totalCrowd": 2079,
+      "totalCap": 6100,
+      "congested": 0,
+      "critical": 0,
+      "avgLoad": 34,
+      "bottlenecks": 0
+    },
+    "astar": {
+      "src": "G1",
+      "snk": "E1",
+      "hops": 4,
+      "path": "G1 → H1 → C1 → E1",
+      "cost": 150,
+      "visitedNodes": 4,
+      "timeMs": 0.015,
+      "found": true
+    },
+    "maxFlow": {
+      "throughput": 700,
+      "timeMs": 0.048
+    },
+    "evacTimeSec": 3,
+    "evacTimeMin": 0.05
+  },
+  {
+    "id": "TC5",
+    "label": "TC5 — Full Venue, Normal Ops",
+    "scenario": "Full 20-node production graph at normal operating crowd.",
+    "graphInfo": {
+      "nodes": 20,
+      "edges": 28,
+      "sources": 4,
+      "sinks": 4
+    },
+    "crowdStats": {
+      "totalCrowd": 4570,
+      "totalCap": 12850,
+      "congested": 3,
+      "critical": 0,
+      "avgLoad": 36,
+      "bottlenecks": 0
+    },
+    "astar": {
+      "src": "Gate_D",
+      "snk": "Exit_D",
+      "hops": 5,
+      "path": "Gate_D → Hall_3 → Corridor_4 → Hall_6 → Exit_D",
+      "cost": 275,
+      "visitedNodes": 5,
+      "timeMs": 0.01,
+      "found": true
+    },
+    "maxFlow": {
+      "throughput": 1400,
+      "timeMs": 0.634
+    },
+    "evacTimeSec": 3,
+    "evacTimeMin": 0.05
+  },
+  {
+    "id": "TC6",
+    "label": "TC6 — Full Venue, Mass Evac",
+    "scenario": "Full 20-node graph at 180% rated load — crisis / evacuation scenario.",
+    "graphInfo": {
+      "nodes": 20,
+      "edges": 28,
+      "sources": 4,
+      "sinks": 4
+    },
+    "crowdStats": {
+      "totalCrowd": 8226,
+      "totalCap": 12850,
+      "congested": 7,
+      "critical": 5,
+      "avgLoad": 64,
+      "bottlenecks": 10
+    },
+    "astar": {
+      "src": "Gate_D",
+      "snk": "Exit_D",
+      "hops": 5,
+      "path": "Gate_D → Hall_3 → Corridor_4 → Hall_6 → Exit_D",
+      "cost": 1525,
+      "visitedNodes": 6,
+      "timeMs": 0.015,
+      "found": true
+    },
+    "maxFlow": {
+      "throughput": 1400,
+      "timeMs": 0.331
+    },
+    "evacTimeSec": 6,
+    "evacTimeMin": 0.1
+  }
+]

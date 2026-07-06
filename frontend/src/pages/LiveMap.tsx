@@ -3,7 +3,6 @@ import {
   ReactFlow,
   Controls,
   Background,
-  MiniMap,
   Handle,
   Position,
   MarkerType,
