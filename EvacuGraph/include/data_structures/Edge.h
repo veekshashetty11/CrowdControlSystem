@@ -47,4 +47,4 @@ private:
     double weight_; // Dynamic edge weight used for route calculations (e.g. travel time)
 };
 
-} 
+} //namespace evacugraph
