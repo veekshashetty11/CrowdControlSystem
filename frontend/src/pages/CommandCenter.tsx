@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import { 
   ResponsiveContainer, 
   LineChart, 
@@ -58,10 +60,40 @@ export const CommandCenter: React.FC = () => {
   const [panicType, setPanicType] = useState<PanicType>('FIRE');
 
   // AI Assistant States
-  const [aiResponse, setAiResponse] = useState<string>(
-    'Select an query directive above to query the Emergency Command AI. The rules engine will synthesize graph, congestion, and hazard states in real time.'
+  const [aiDisplayed, setAiDisplayed] = useState<string>(
+    'Select a query directive above to invoke the Emergency Command AI. The rules engine synthesizes graph, congestion, and hazard states in real time.'
   );
+  const [aiFullText, setAiFullText] = useState<string>('');
   const [activeQuery, setActiveQuery] = useState<string>('');
+  const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Timeline filter state
+  const [timelineFilter, setTimelineFilter] = useState<'ALL' | 'HAZARD' | 'PANIC' | 'REROUTE' | 'STABLE'>('ALL');
+
+  // Typewriter effect
+  useEffect(() => {
+    if (!aiFullText) return;
+    setAiDisplayed('');
+    let idx = 0;
+    if (typewriterRef.current) clearInterval(typewriterRef.current);
+    typewriterRef.current = setInterval(() => {
+      idx++;
+      setAiDisplayed(aiFullText.slice(0, idx));
+      if (idx >= aiFullText.length && typewriterRef.current) {
+        clearInterval(typewriterRef.current);
+      }
+    }, 12);
+    return () => { if (typewriterRef.current) clearInterval(typewriterRef.current); };
+  }, [aiFullText]);
+
+  const cardVariants: Variants = {
+    hidden: { opacity: 0, y: 16 },
+    visible: (i: number) => ({
+      opacity: 1, y: 0,
+      transition: { delay: i * 0.08, duration: 0.4, ease: 'easeOut' }
+    })
+  };
+
 
   // Filter out forecast points for current density stats
   const actualHistory = densityHistory.filter(pt => !pt.time.startsWith('+'));
@@ -278,7 +310,7 @@ export const CommandCenter: React.FC = () => {
       case 'SAFEST_EXIT': {
         const exits = nodes.filter(n => n.type === 'EMERGENCY_EXIT' || n.type === 'ENTRY_GATE');
         if (exits.length === 0) {
-          setAiResponse('No usable exits detected in the venue graph configuration.');
+          setAiFullText('No usable exits detected in the venue graph configuration.');
           return;
         }
         
@@ -296,7 +328,7 @@ export const CommandCenter: React.FC = () => {
         });
 
         const pct = Math.round((bestExit.currentDensity / bestExit.capacity) * 100);
-        setAiResponse(
+        setAiFullText(
           `[EMERGENCY COMMAND AI: SAFEST EXIT ANALYTICAL ROUTING]\n\n` +
           `• Recommending Egress Portal: ${bestExit.name}\n` +
           `• Density load factor: ${pct}% (${Math.round(bestExit.currentDensity)} / ${bestExit.capacity} Capacity)\n` +
@@ -308,7 +340,7 @@ export const CommandCenter: React.FC = () => {
       case 'HIGHEST_CONGESTION': {
         const internalNodes = nodes.filter(n => n.type !== 'EMERGENCY_EXIT');
         if (internalNodes.length === 0) {
-          setAiResponse('No internal graph sectors loaded.');
+          setAiFullText('No internal graph sectors loaded.');
           return;
         }
 
@@ -323,7 +355,7 @@ export const CommandCenter: React.FC = () => {
         });
 
         const pct = Math.round(maxRatio * 100);
-        setAiResponse(
+        setAiFullText(
           `[EMERGENCY COMMAND AI: SECTOR CONGESTION AUDIT]\n\n` +
           `• Critical Hotspot identified: ${worstNode.name}\n` +
           `• Current Congestion Index: ${pct}%\n` +
@@ -334,7 +366,7 @@ export const CommandCenter: React.FC = () => {
       }
       case 'BEST_ROUTE': {
         if (selectedPath.length === 0) {
-          setAiResponse(
+          setAiFullText(
             `[EMERGENCY COMMAND AI: ROUTE COMPILATION]\n\n` +
             `• Status: No active path selected on map.\n` +
             `• Action: Select a node on the venue layout or set route coordinates in the Control Panel.`
@@ -348,7 +380,7 @@ export const CommandCenter: React.FC = () => {
           return acc + (n ? n.currentDensity / n.capacity : 0);
         }, 0) / selectedPath.length;
 
-        setAiResponse(
+        setAiFullText(
           `[EMERGENCY COMMAND AI: SYSTEM OPTIMAL PATH DETAILED WIDGET]\n\n` +
           `• Path Vector: ${pathNames.join(' ➔ ')}\n` +
           `• Path hops: ${selectedPath.length} steps\n` +
@@ -358,7 +390,7 @@ export const CommandCenter: React.FC = () => {
         break;
       }
       case 'WHY_ROUTE': {
-        setAiResponse(
+        setAiFullText(
           `[EMERGENCY COMMAND AI: STRATEGY SCHEDULER JUSTIFICATION]\n\n` +
           `• Selected Strategy Core: ${smartDecision.selectedAlgorithm}\n` +
           `• Situation Profile: ${smartDecision.situation}\n` +
@@ -370,7 +402,7 @@ export const CommandCenter: React.FC = () => {
       }
       case 'CURRENT_RISKS': {
         const hazardTypes = nodes.filter(n => panickedNodes[n.id] && panickedNodes[n.id].level > 50).map(n => n.name);
-        setAiResponse(
+        setAiFullText(
           `[EMERGENCY COMMAND AI: COMPREHENSIVE VENUE RISK INDEX]\n\n` +
           `• Active Stampede Risk Factor: ${stats.stampedeProbability}%\n` +
           `• Dynamic Bottleneck Count: ${stats.bottleneckCount} corridors\n` +
@@ -394,7 +426,7 @@ export const CommandCenter: React.FC = () => {
           recList.push('✅ All parameters stable. Continue standard routing supervision.');
         }
 
-        setAiResponse(
+        setAiFullText(
           `[EMERGENCY COMMAND AI: COMMAND OPERATIONAL DECISION LIST]\n\n` +
           recList.map((rec, i) => `${i + 1}. ${rec}`).join('\n')
         );
@@ -475,112 +507,120 @@ export const CommandCenter: React.FC = () => {
       {/* 2. Top Metric Row (Scorecard HUD including Evacuation Performance Score) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Evacuation Performance Score Card */}
-        <GlassCard className="border-slate-800 bg-slate-900/40 relative overflow-hidden flex flex-col justify-between p-5">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-brand-green/5 rounded-full blur-2xl -z-10"></div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center">
-              <Award className="w-4 h-4 mr-1.5 text-brand-green" />
-              Egress Operations Grade
-            </span>
-            <span className={`text-xs font-black font-mono border-2 px-2.5 py-0.5 rounded-md ${performanceGrade.color}`}>
-              {performanceGrade.grade}
-            </span>
-          </div>
-          <div className="my-4 flex items-center space-x-4">
-            <div className="relative flex items-center justify-center">
-              <svg className="w-20 h-20 transform -rotate-90">
-                <circle cx="40" cy="40" r="32" stroke="#1e293b" strokeWidth="6" fill="transparent" />
-                <circle 
-                  cx="40" 
-                  cy="40" 
-                  r="32" 
-                  stroke={overallPerformanceScore >= 80 ? '#10b981' : overallPerformanceScore >= 60 ? '#f59e0b' : '#ef4444'} 
-                  strokeWidth="6" 
-                  fill="transparent" 
-                  strokeDasharray={2 * Math.PI * 32}
-                  strokeDashoffset={2 * Math.PI * 32 * (1 - overallPerformanceScore / 100)}
-                  strokeLinecap="round"
-                  className="transition-all duration-1000"
-                />
-              </svg>
-              <div className="absolute text-xl font-black text-white font-mono">{overallPerformanceScore}%</div>
+        <motion.div custom={0} variants={cardVariants} initial="hidden" animate="visible" className="flex flex-col">
+          <GlassCard className="border-slate-800 bg-slate-900/40 relative overflow-hidden flex flex-col justify-between p-5 h-full">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-brand-green/5 rounded-full blur-2xl -z-10"></div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center">
+                <Award className="w-4 h-4 mr-1.5 text-brand-green" />
+                Egress Operations Grade
+              </span>
+              <span className={`text-xs font-black font-mono border-2 px-2.5 py-0.5 rounded-md ${performanceGrade.color}`}>
+                {performanceGrade.grade}
+              </span>
             </div>
-            <div>
-              <div className="text-xs font-mono text-slate-400">Tactical Score</div>
-              <div className="text-sm font-bold text-white mt-0.5">
-                {overallPerformanceScore >= 80 ? 'Optimal Status' : overallPerformanceScore >= 60 ? 'Stressed Flow' : 'Critical Hazard'}
+            <div className="my-4 flex items-center space-x-4">
+              <div className="relative flex items-center justify-center">
+                <svg className="w-20 h-20 transform -rotate-90">
+                  <circle cx="40" cy="40" r="32" stroke="#1e293b" strokeWidth="6" fill="transparent" />
+                  <circle 
+                    cx="40" 
+                    cy="40" 
+                    r="32" 
+                    stroke={overallPerformanceScore >= 80 ? '#10b981' : overallPerformanceScore >= 60 ? '#f59e0b' : '#ef4444'} 
+                    strokeWidth="6" 
+                    fill="transparent" 
+                    strokeDasharray={2 * Math.PI * 32}
+                    strokeDashoffset={2 * Math.PI * 32 * (1 - overallPerformanceScore / 100)}
+                    strokeLinecap="round"
+                    className="transition-all duration-1000"
+                  />
+                </svg>
+                <div className="absolute text-xl font-black text-white font-mono">{overallPerformanceScore}%</div>
               </div>
-              <p className="text-[10px] text-slate-500 leading-tight mt-1">Weighted metric index of safety and bottleneck rates.</p>
+              <div>
+                <div className="text-xs font-mono text-slate-400">Tactical Score</div>
+                <div className="text-sm font-bold text-white mt-0.5">
+                  {overallPerformanceScore >= 80 ? 'Optimal Status' : overallPerformanceScore >= 60 ? 'Stressed Flow' : 'Critical Hazard'}
+                </div>
+                <p className="text-[10px] text-slate-500 leading-tight mt-1">Weighted metric index of safety and bottleneck rates.</p>
+              </div>
             </div>
-          </div>
-          <div className="text-[10px] font-mono text-slate-500 border-t border-slate-900 pt-2 flex justify-between">
-            <span>Safety: {safetyScore}%</span>
-            <span>Efficiency: {efficiencyScore}%</span>
-          </div>
-        </GlassCard>
+            <div className="text-[10px] font-mono text-slate-500 border-t border-slate-900 pt-2 flex justify-between">
+              <span>Safety: {safetyScore}%</span>
+              <span>Efficiency: {efficiencyScore}%</span>
+            </div>
+          </GlassCard>
+        </motion.div>
 
         {/* Live Evacuated Statistics */}
-        <GlassCard className="border-slate-800 bg-slate-900/30 flex flex-col justify-between p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center">
-              <TrendingUp className="w-4 h-4 mr-1.5 text-brand-green" />
-              Evacuation Tracking
-            </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 bg-brand-green/10 border border-brand-green/20 rounded text-brand-green font-bold">
-              LIVE COUNT
-            </span>
-          </div>
-          <div className="my-4">
-            <div className="text-3xl font-black text-white">{peopleEvacuated} <span className="text-xs font-normal text-slate-400 font-mono">Evacuated</span></div>
-            <p className="text-[11px] text-slate-500 mt-1">Remaining inside venue: {peopleRemaining} Pax</p>
-          </div>
-          <div className="text-[10px] font-mono text-slate-500 border-t border-slate-900 pt-2 flex justify-between">
-            <span>Egress Rate: {isEvacuationActive ? '15.5 people/s' : '0.0 people/s'}</span>
-            <span>Evacuation: {isEvacuationActive ? 'ACTIVE' : 'STANDBY'}</span>
-          </div>
-        </GlassCard>
+        <motion.div custom={1} variants={cardVariants} initial="hidden" animate="visible" className="flex flex-col">
+          <GlassCard className="border-slate-800 bg-slate-900/30 flex flex-col justify-between p-5 h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center">
+                <TrendingUp className="w-4 h-4 mr-1.5 text-brand-green" />
+                Evacuation Tracking
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 bg-brand-green/10 border border-brand-green/20 rounded text-brand-green font-bold">
+                LIVE COUNT
+              </span>
+            </div>
+            <div className="my-4">
+              <div className="text-3xl font-black text-white">{peopleEvacuated} <span className="text-xs font-normal text-slate-400 font-mono">Evacuated</span></div>
+              <p className="text-[11px] text-slate-500 mt-1">Remaining inside venue: {peopleRemaining} Pax</p>
+            </div>
+            <div className="text-[10px] font-mono text-slate-500 border-t border-slate-900 pt-2 flex justify-between">
+              <span>Egress Rate: {isEvacuationActive ? '15.5 people/s' : '0.0 people/s'}</span>
+              <span>Evacuation: {isEvacuationActive ? 'ACTIVE' : 'STANDBY'}</span>
+            </div>
+          </GlassCard>
+        </motion.div>
 
         {/* Forecast +1 Minute card */}
-        <GlassCard className="border-slate-800 bg-slate-900/30 flex flex-col justify-between p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center">
-              <Clock className="w-4 h-4 mr-1.5 text-orange-400" />
-              Density Forecast +60s
-            </span>
-            <span className={`text-[10px] font-bold border px-2 py-0.5 rounded-full ${getPredictionRisk(Math.round((ma1m+es1m+te1m)/3)).color}`}>
-              {getPredictionRisk(Math.round((ma1m+es1m+te1m)/3)).label}
-            </span>
-          </div>
-          <div className="my-4">
-            <div className="text-3xl font-black text-white">{Math.round((ma1m + es1m + te1m) / 3)} <span className="text-xs font-normal text-slate-400 font-mono">Pax</span></div>
-            <p className="text-[11px] text-slate-500 mt-1">Exponential smoothed: {es1m > currentTotalDensity ? 'Load accumulating' : 'Clearing paths'}</p>
-          </div>
-          <div className="text-[10px] font-mono text-slate-500 border-t border-slate-900 pt-2 flex justify-between">
-            <span>Confidence: {confidence1m}%</span>
-            <span>Var: +/- 3.5%</span>
-          </div>
-        </GlassCard>
+        <motion.div custom={2} variants={cardVariants} initial="hidden" animate="visible" className="flex flex-col">
+          <GlassCard className="border-slate-800 bg-slate-900/30 flex flex-col justify-between p-5 h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center">
+                <Clock className="w-4 h-4 mr-1.5 text-orange-400" />
+                Density Forecast +60s
+              </span>
+              <span className={`text-[10px] font-bold border px-2 py-0.5 rounded-full ${getPredictionRisk(Math.round((ma1m+es1m+te1m)/3)).color}`}>
+                {getPredictionRisk(Math.round((ma1m+es1m+te1m)/3)).label}
+              </span>
+            </div>
+            <div className="my-4">
+              <div className="text-3xl font-black text-white">{Math.round((ma1m + es1m + te1m) / 3)} <span className="text-xs font-normal text-slate-400 font-mono">Pax</span></div>
+              <p className="text-[11px] text-slate-500 mt-1">Exponential smoothed: {es1m > currentTotalDensity ? 'Load accumulating' : 'Clearing paths'}</p>
+            </div>
+            <div className="text-[10px] font-mono text-slate-500 border-t border-slate-900 pt-2 flex justify-between">
+              <span>Confidence: {confidence1m}%</span>
+              <span>Var: +/- 3.5%</span>
+            </div>
+          </GlassCard>
+        </motion.div>
 
         {/* Forecast +2 Minutes card */}
-        <GlassCard className="border-slate-800 bg-slate-900/30 flex flex-col justify-between p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center">
-              <Clock className="w-4 h-4 mr-1.5 text-brand-red" />
-              Density Forecast +120s
-            </span>
-            <span className={`text-[10px] font-bold border px-2 py-0.5 rounded-full ${getPredictionRisk(averagePredicted2m).color}`}>
-              {getPredictionRisk(averagePredicted2m).label}
-            </span>
-          </div>
-          <div className="my-4">
-            <div className="text-3xl font-black text-white">{averagePredicted2m} <span className="text-xs font-normal text-slate-400 font-mono">Pax</span></div>
-            <p className="text-[11px] text-slate-500 mt-1">Est Egress Time: {isEvacuationActive ? `${estimatedSecondsLeft} seconds` : 'N/A'}</p>
-          </div>
-          <div className="text-[10px] font-mono text-slate-500 border-t border-slate-900 pt-2 flex justify-between">
-            <span>Confidence: {confidence2m}%</span>
-            <span>Var: +/- 6.2%</span>
-          </div>
-        </GlassCard>
+        <motion.div custom={3} variants={cardVariants} initial="hidden" animate="visible" className="flex flex-col">
+          <GlassCard className="border-slate-800 bg-slate-900/30 flex flex-col justify-between p-5 h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center">
+                <Clock className="w-4 h-4 mr-1.5 text-brand-red" />
+                Density Forecast +120s
+              </span>
+              <span className={`text-[10px] font-bold border px-2 py-0.5 rounded-full ${getPredictionRisk(averagePredicted2m).color}`}>
+                {getPredictionRisk(averagePredicted2m).label}
+              </span>
+            </div>
+            <div className="my-4">
+              <div className="text-3xl font-black text-white">{averagePredicted2m} <span className="text-xs font-normal text-slate-400 font-mono">Pax</span></div>
+              <p className="text-[11px] text-slate-500 mt-1">Est Egress Time: {isEvacuationActive ? `${estimatedSecondsLeft} seconds` : 'N/A'}</p>
+            </div>
+            <div className="text-[10px] font-mono text-slate-500 border-t border-slate-900 pt-2 flex justify-between">
+              <span>Confidence: {confidence2m}%</span>
+              <span>Var: +/- 6.2%</span>
+            </div>
+          </GlassCard>
+        </motion.div>
       </div>
 
       {/* 3. Middle Grid: SVG Map, Recharts Forecast, and Panic Controls */}
@@ -831,7 +871,7 @@ export const CommandCenter: React.FC = () => {
                 <span className="w-1.5 h-1.5 bg-brand-green rounded-full animate-ping"></span>
                 <span className="text-[9px] text-slate-500">READY</span>
               </div>
-              <pre className="whitespace-pre-wrap font-sans text-xs">{aiResponse}</pre>
+              <pre className="whitespace-pre-wrap font-sans text-xs">{aiDisplayed}</pre>
             </div>
           </div>
 
@@ -843,19 +883,46 @@ export const CommandCenter: React.FC = () => {
 
         {/* Live Incident Timeline Panel */}
         <GlassCard className="border-slate-800 bg-slate-900/40 p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-            <div className="flex items-center space-x-2">
-              <Clock className="w-4 h-4 text-brand-red animate-pulse" />
-              <h3 className="font-semibold text-white text-sm">Incident Timeline & Replay</h3>
+          <div className="flex flex-col space-y-3 border-b border-slate-800 pb-3 mb-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Clock className="w-4 h-4 text-brand-red animate-pulse" />
+                <h3 className="font-semibold text-white text-sm">Incident Timeline & Replay</h3>
+              </div>
+              <span className="text-[10px] text-slate-500 font-mono">CLICK TO LOCATE INCIDENT</span>
             </div>
-            <span className="text-[10px] text-slate-500 font-mono">CLICK TO LOCATE INCIDENT</span>
+            {/* Filter tabs */}
+            <div className="flex gap-1.5 flex-wrap">
+              {(['ALL','HAZARD','PANIC','REROUTE','STABLE'] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setTimelineFilter(f)}
+                  className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border transition-all ${
+                    timelineFilter === f
+                      ? 'bg-brand-blue/20 border-brand-blue text-brand-blue'
+                      : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300'
+                  }`}
+                >{f}</button>
+              ))}
+            </div>
           </div>
 
-          <div className="space-y-3 overflow-y-auto max-h-[240px] pr-1 flex-1 font-mono text-[11px]">
-            {timelineEvents.length === 0 ? (
-              <div className="text-slate-500 text-center py-10">No incident logs loaded.</div>
-            ) : (
-              timelineEvents.map((evt) => {
+          <div className="space-y-3 overflow-y-auto max-h-[240px] pr-1 flex-1 font-mono text-[11px] mt-3">
+            {(() => {
+              const filterMap: Record<string, string[]> = {
+                HAZARD: ['HAZARD_INJECTED'],
+                PANIC: ['PANIC_TRIGGERED', 'STAMPEDE_RISK_SPIKE'],
+                REROUTE: ['REROUTED', 'EVACUATION_STARTED'],
+                STABLE: ['STABILIZED'],
+                ALL: []
+              };
+              const filtered = timelineFilter === 'ALL'
+                ? timelineEvents
+                : timelineEvents.filter(e => filterMap[timelineFilter]?.includes(e.type));
+              return filtered.length === 0 ? (
+                <div className="text-slate-500 text-center py-10">No events for this filter.</div>
+              ) : (
+                filtered.map((evt) => {
                 const isSelected = selectedNodeId === evt.nodeId;
                 return (
                   <div 
@@ -888,8 +955,9 @@ export const CommandCenter: React.FC = () => {
                     )}
                   </div>
                 );
-              })
-            )}
+                })
+              );
+            })()}
           </div>
 
           <div className="border-t border-slate-900 mt-3 pt-2 text-[10px] text-slate-500 flex justify-between font-mono">
@@ -1025,6 +1093,14 @@ export const CommandCenter: React.FC = () => {
                   <Bar dataKey="Throughput" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="mt-3 p-3 bg-brand-blue/5 border border-brand-blue/20 rounded-xl flex items-start space-x-2">
+            <Award className="w-4 h-4 text-brand-blue shrink-0 mt-0.5" />
+            <div className="text-[10px] font-mono">
+              <span className="text-brand-blue font-bold block">Winning Strategy</span>
+              <span className="text-slate-200">{smartDecision.selectedAlgorithm}</span>
+              <span className="text-slate-500 block mt-0.5">{smartDecision.situation} — {smartDecision.decisionConfidence}% confidence</span>
             </div>
           </div>
           <p className="text-[10px] text-slate-500 leading-normal font-mono mt-3">

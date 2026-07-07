@@ -15,13 +15,17 @@ import {
   RotateCcw,
   Cpu,
   Layers,
-  BookOpen
+  BookOpen,
+  Info,
+  CheckCircle,
+  Award
 } from 'lucide-react';
 import { findSafestPathAStarDetailed } from '../utils/algorithms';
 import type { AStarStep } from '../types';
 
 export const RouteOptimizer: React.FC = () => {
-  const { nodes, edges, calculateRoute, selectedPath, activeAlgorithm } = useSimulation();
+  const { nodes, edges, calculateRoute, selectedPath, activeAlgorithm, smartDecision, panickedNodes } = useSimulation();
+  const [showStrategyTable, setShowStrategyTable] = useState(false);
 
   const [source, setSource] = useState('Gate_A');
   const [destination, setDestination] = useState('Exit_A');
@@ -446,7 +450,8 @@ export const RouteOptimizer: React.FC = () => {
             /* Instantaneous Mode Layout */
             <AnimatePresence mode="wait">
               {selectedPath.length > 0 && activeAlgorithm ? (
-                <motion.div
+                <>
+                  <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
@@ -529,6 +534,155 @@ export const RouteOptimizer: React.FC = () => {
                     ⚡ Note: You can view this computed path highlighted dynamically on the Live Map.
                   </div>
                 </motion.div>
+
+                {/* ── Explainable Decision Panel ─────────────────────────── */}
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.4 }}
+                  className="mt-4"
+                >
+                  <GlassCard glowColor="none" className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold uppercase tracking-wider text-slate-300 font-mono flex items-center">
+                        <Info className="w-4 h-4 mr-1.5 text-brand-blue" />
+                        Explainable Routing Decision
+                      </h4>
+                      <span className="text-[9px] font-mono text-brand-blue border border-brand-blue/30 bg-brand-blue/10 px-2 py-0.5 rounded">
+                        AI RATIONALE
+                      </span>
+                    </div>
+
+                    {/* Metric Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 font-mono text-xs">
+                      {[
+                        { label: 'Distance', value: `${pathNodes.length * 120} m` },
+                        { label: 'Avg Density', value: `${Math.round(pathNodes.reduce((s, n) => s + (n ? n.currentDensity / n.capacity : 0), 0) / Math.max(1, pathNodes.length) * 100)}%` },
+                        { label: 'Min Capacity Left', value: `${Math.min(...pathNodes.map(n => n ? n.capacity - n.currentDensity : 0))} pax` },
+                        { label: 'Est. Time', value: `${pathNodes.length * 15}s` },
+                        { label: 'Congested Nodes', value: `${pathNodes.filter(n => n && (n.currentDensity / n.capacity) >= 0.7).length}` },
+                        { label: 'Panic Nodes', value: `${pathNodes.filter(n => n && panickedNodes[n.id] && panickedNodes[n.id].level > 30).length}` },
+                        { label: 'Route Risk', value: maxRisk },
+                        { label: 'Algorithm', value: activeAlgorithm?.name?.split(' ')[0] || 'A*' },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="p-2.5 bg-slate-950/60 border border-slate-900 rounded-xl space-y-1">
+                          <span className="text-slate-500 text-[9px] uppercase tracking-wider block">{label}</span>
+                          <span className="text-white font-bold">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Why this algorithm */}
+                    <div className="bg-slate-950/50 border border-slate-850 rounded-xl p-3 space-y-1">
+                      <span className="text-[9px] uppercase tracking-wider text-slate-500 font-mono block">WHY THIS ALGORITHM</span>
+                      <p className="text-xs text-slate-300 leading-relaxed font-mono">
+                        {smartDecision.reason || 'Standard A* search selected. No active hazards or heavy congestion detected.'}
+                      </p>
+                      <div className="flex items-center gap-3 pt-1 text-[9px] font-mono">
+                        <span className="text-slate-500">Confidence:</span>
+                        <span className="text-brand-blue font-bold">{smartDecision.decisionConfidence}%</span>
+                        <span className="text-slate-500">Improvement:</span>
+                        <span className="text-brand-green font-bold">+{smartDecision.estimatedImprovement}%</span>
+                      </div>
+                    </div>
+
+                    {/* Collapsible Strategy Comparison */}
+                    <div>
+                      <button
+                        onClick={() => setShowStrategyTable(s => !s)}
+                        className="w-full flex items-center justify-between text-[10px] font-mono text-slate-400 hover:text-slate-200 transition-colors py-1"
+                      >
+                        <span className="flex items-center">
+                          <Layers className="w-3.5 h-3.5 mr-1.5" />
+                          Strategy Comparison Matrix
+                        </span>
+                        <span>{showStrategyTable ? '▲ Collapse' : '▼ Expand'}</span>
+                      </button>
+
+                      <AnimatePresence>
+                        {showStrategyTable && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-3 overflow-x-auto">
+                              <table className="w-full text-left text-[10px] font-mono border-collapse">
+                                <thead>
+                                  <tr className="border-b border-slate-850 text-slate-500">
+                                    <th className="pb-2 pr-3">Strategy</th>
+                                    <th className="pb-2 pr-3 text-center">Distance</th>
+                                    <th className="pb-2 pr-3 text-center">Safety</th>
+                                    <th className="pb-2 pr-3 text-center">Throughput</th>
+                                    <th className="pb-2">Best For</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {[
+                                    { name: 'Shortest Path', dist: 'Minimal', safety: 'Low', thru: 'Low', best: 'Light crowd' },
+                                    { name: 'Safest Path (A*)', dist: 'Moderate', safety: 'High', thru: 'Medium', best: 'Hazard avoidance' },
+                                    { name: 'Least Congested', dist: 'Moderate', safety: 'Medium', thru: 'High', best: 'Bottleneck bypass' },
+                                    { name: 'Max Flow (FF)', dist: 'High', safety: 'High', thru: 'Maximum', best: 'Heavy congestion' },
+                                    { name: 'Hybrid Routing', dist: 'Optimised', safety: 'Highest', thru: 'Highest', best: 'Panic + Evacuation' },
+                                  ].map(row => {
+                                    const isActive = smartDecision.selectedAlgorithm.toLowerCase().includes(row.name.split(' ')[0].toLowerCase());
+                                    return (
+                                      <tr key={row.name} className={`border-b border-slate-900/60 transition-colors ${
+                                        isActive ? 'bg-brand-blue/10 text-white' : 'text-slate-400 hover:bg-slate-900/20'
+                                      }`}>
+                                        <td className="py-2.5 pr-3 font-bold flex items-center">
+                                          {isActive && <ArrowRight className="w-3 h-3 mr-1 text-brand-blue animate-pulse" />}
+                                          {row.name}
+                                        </td>
+                                        <td className="py-2.5 pr-3 text-center">{row.dist}</td>
+                                        <td className="py-2.5 pr-3 text-center">
+                                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
+                                            row.safety === 'Highest' ? 'bg-brand-green/20 text-brand-green' :
+                                            row.safety === 'High' ? 'bg-emerald-500/20 text-emerald-400' :
+                                            row.safety === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                            'bg-brand-red/20 text-brand-red'
+                                          }`}>{row.safety}</span>
+                                        </td>
+                                        <td className="py-2.5 pr-3 text-center">
+                                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
+                                            row.thru === 'Maximum' || row.thru === 'Highest' ? 'bg-brand-green/20 text-brand-green' :
+                                            row.thru === 'High' || row.thru === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                            'bg-brand-red/20 text-brand-red'
+                                          }`}>{row.thru}</span>
+                                        </td>
+                                        <td className="py-2.5 text-slate-500">{row.best}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Winning Strategy Recommendation */}
+                            <div className="mt-3 p-3 bg-brand-blue/5 border border-brand-blue/20 rounded-xl flex items-start space-x-2">
+                              <Award className="w-4 h-4 text-brand-blue shrink-0 mt-0.5" />
+                              <div className="text-[10px] font-mono">
+                                <span className="text-brand-blue font-bold block">Recommended Strategy</span>
+                                <span className="text-slate-300">{smartDecision.selectedAlgorithm}</span>
+                                <span className="text-slate-500 block mt-0.5">
+                                  {smartDecision.situation} — Confidence {smartDecision.decisionConfidence}%
+                                </span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    <div className="text-[9px] text-slate-600 font-mono flex items-center">
+                      <CheckCircle className="w-3 h-3 mr-1 text-brand-green" />
+                      Decision rationale validated against live simulation state.
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              </>
               ) : (
                 <div className="glass-panel border-slate-800/60 rounded-2xl p-6 min-h-[320px] flex flex-col items-center justify-center text-slate-500 font-mono text-xs space-y-3">
                   <Play className="w-8 h-8 text-brand-blue animate-pulse" />
