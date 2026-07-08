@@ -1,22 +1,18 @@
 import React from 'react';
 import { 
-  LayoutDashboard, 
   Map, 
   BarChart3,
   Navigation, 
   ShieldAlert, 
   Play, 
-  Settings, 
   Zap,
   GitFork,
-  Tv2,
+
   TriangleAlert,
-  FlaskConical,
   Radio,
 } from 'lucide-react';
 
 export type TabId = 
-  | 'dashboard' 
   | 'live-map' 
   | 'heatmap' 
   | 'crowd-analytics' 
@@ -24,10 +20,8 @@ export type TabId =
   | 'max-flow' 
   | 'evacuation' 
   | 'simulation' 
-  | 'settings' 
-  | 'digital-twin' 
+
   | 'hazard-control' 
-  | 'whatif'
   | 'command-center';
 
 interface SidebarProps {
@@ -44,20 +38,15 @@ interface SidebarItem {
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isEvacuationActive }) => {
   const menuItems: SidebarItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'command-center', label: 'Command Center', icon: Radio },
     { id: 'live-map', label: 'Live Map', icon: Map },
     { id: 'heatmap', label: 'Crowd Heatmap', icon: Zap },
     { id: 'crowd-analytics', label: 'Crowd Analytics', icon: BarChart3 },
     { id: 'route-optimizer', label: 'Route Optimizer', icon: Navigation },
-    { id: 'max-flow', label: 'Max Flow Visualizer', icon: GitFork },
-    { id: 'evacuation', label: 'Evacuation Center', icon: ShieldAlert },
-    { id: 'simulation', label: 'Simulation Control', icon: Play },
-    // ── New features ───────────────────────────────────────────
-    { id: 'command-center', label: 'Command Center', icon: Radio },
-    { id: 'digital-twin', label: 'Digital Twin', icon: Tv2 },
-    { id: 'hazard-control', label: 'Hazard Control', icon: TriangleAlert },
-    { id: 'whatif', label: 'What-If Simulation', icon: FlaskConical },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'max-flow', label: 'Max Flow', icon: GitFork },
+    { id: 'evacuation', label: 'Evacuation', icon: ShieldAlert },
+    { id: 'simulation', label: 'Simulation & Settings', icon: Play },
+    { id: 'hazard-control', label: 'Hazard & Scenarios', icon: TriangleAlert },
   ];
 
   return (

@@ -4,19 +4,16 @@ import { SimulationProvider, useSimulation } from './context/SimulationContext';
 import { Sidebar } from './components/Sidebar';
 import type { TabId } from './components/Sidebar';
 import { Header } from './components/Header';
-import { AlgorithmPanel } from './components/AlgorithmPanel';
-import { Dashboard } from './pages/Dashboard';
+
 import { LiveMap } from './pages/LiveMap';
 import { Heatmap } from './pages/Heatmap';
 import { RouteOptimizer } from './pages/RouteOptimizer';
 import { EvacuationCenter } from './pages/EvacuationCenter';
 import { CrowdAnalytics } from './pages/CrowdAnalytics';
 import { SimulationControl } from './pages/SimulationControl';
-import { Settings } from './pages/Settings';
 import { MaxFlowVisualizer } from './pages/MaxFlowVisualizer';
-import { DigitalTwin } from './pages/DigitalTwin';
+
 import { HazardControl } from './pages/HazardControl';
-import { WhatIfSimulation } from './pages/WhatIfSimulation';
 import { CommandCenter } from './pages/CommandCenter';
 
 
@@ -27,12 +24,11 @@ const pageVariants = {
 };
 
 const AppContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  const [activeTab, setActiveTab] = useState<TabId>('command-center');
   const { isEvacuationActive } = useSimulation();
 
   const renderPage = () => {
     switch (activeTab) {
-      case 'dashboard':        return <Dashboard />;
       case 'live-map':         return <LiveMap />;
       case 'heatmap':          return <Heatmap />;
       case 'crowd-analytics':  return <CrowdAnalytics />;
@@ -41,11 +37,9 @@ const AppContent: React.FC = () => {
       case 'evacuation':       return <EvacuationCenter />;
       case 'simulation':       return <SimulationControl />;
       case 'command-center':   return <CommandCenter />;
-      case 'digital-twin':     return <DigitalTwin />;
+
       case 'hazard-control':   return <HazardControl />;
-      case 'whatif':           return <WhatIfSimulation />;
-      case 'settings':         return <Settings />;
-      default:                 return <Dashboard />;
+      default:                 return <CommandCenter />;
     }
   };
 
@@ -78,8 +72,7 @@ const AppContent: React.FC = () => {
         </main>
       </div>
 
-      {/* Floating Algorithm Panel */}
-      <AlgorithmPanel />
+
     </div>
   );
 };

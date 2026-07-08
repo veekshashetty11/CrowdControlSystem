@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -15,7 +15,7 @@ import {
 import type { EdgeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useSimulation } from '../context/SimulationContext';
-import { MapPin, Users, Flame, Info, AlertTriangle, ZoomIn, ZoomOut, Maximize2, LogIn, LogOut, ArrowRightLeft, LayoutDashboard } from 'lucide-react';
+import { MapPin, Users, Flame, Info, AlertTriangle, ZoomIn, ZoomOut, Maximize2, LogIn, LogOut, ArrowRightLeft, LayoutDashboard, X, Eye } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
 // CUSTOM NODE COMPONENT
@@ -31,7 +31,7 @@ const CustomVenueNode = ({ data }: { data: Record<string, unknown> }) => {
 
   const ratio = currentDensity / capacity;
 
-  let riskColor = 'border-slate-800/80 bg-slate-950/85 text-slate-400';
+  let riskColor = 'border-brand-green/40 bg-slate-950/85 text-brand-green';
   let barColor = 'bg-brand-green';
   let stripColor = 'bg-brand-green';
 
@@ -47,13 +47,8 @@ const CustomVenueNode = ({ data }: { data: Record<string, unknown> }) => {
     riskColor = 'border-amber-500/40 bg-slate-950/85 text-amber-500';
     barColor = 'bg-amber-500';
     stripColor = 'bg-amber-500';
-  } else {
-    riskColor = 'border-brand-green/40 bg-slate-950/85 text-brand-green';
-    barColor = 'bg-brand-green';
-    stripColor = 'bg-brand-green';
   }
 
-  // Active path / select highlights
   let highlightClass = '';
   if (isOnPath) {
     highlightClass = 'ring-2 ring-brand-blue ring-offset-2 ring-offset-slate-950 shadow-[0_0_20px_rgba(59,130,246,0.4)] scale-[1.03] border-brand-blue/80';
@@ -61,7 +56,6 @@ const CustomVenueNode = ({ data }: { data: Record<string, unknown> }) => {
     highlightClass = 'ring-2 ring-brand-blue/50 ring-offset-1 ring-offset-slate-950 scale-[1.02] border-brand-blue/60';
   }
 
-  // Node type icon selector
   const getNodeIcon = () => {
     switch (type) {
       case 'ENTRY_GATE':
@@ -76,7 +70,6 @@ const CustomVenueNode = ({ data }: { data: Record<string, unknown> }) => {
     }
   };
 
-  // Risk zone badge styling
   const riskBadge: Record<string, string> = {
     CRITICAL: 'bg-brand-red/10 text-brand-red border-brand-red/20',
     HIGH: 'bg-brand-orange/10 text-brand-orange border-brand-orange/20',
@@ -85,15 +78,12 @@ const CustomVenueNode = ({ data }: { data: Record<string, unknown> }) => {
   };
 
   return (
-    <div className={`pl-4 pr-5 py-3.5 rounded-2xl border text-left min-w-[200px] backdrop-blur-md transition-all duration-355 hover:border-slate-600 hover:scale-[1.01] relative overflow-hidden ${riskColor} ${highlightClass}`}>
-      {/* Handle terminals */}
+    <div className={`pl-4 pr-5 py-3.5 rounded-2xl border text-left min-w-[200px] backdrop-blur-md transition-all duration-300 hover:border-slate-600 hover:scale-[1.01] relative overflow-hidden ${riskColor} ${highlightClass}`}>
       <Handle type="target" position={Position.Left} style={{ width: 6, height: 6, background: '#3b82f6', border: '1px solid #0f172a', opacity: 0 }} />
       <Handle type="source" position={Position.Right} style={{ width: 6, height: 6, background: '#3b82f6', border: '1px solid #0f172a', opacity: 0 }} />
 
-      {/* Decorative Left strip */}
       <div className={`absolute left-0 top-0 bottom-0 w-1 ${stripColor}`} />
 
-      {/* Header telemetry details */}
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center space-x-1.5 text-slate-400 font-mono text-[9px] uppercase tracking-wider font-semibold">
           {getNodeIcon()}
@@ -106,15 +96,13 @@ const CustomVenueNode = ({ data }: { data: Record<string, unknown> }) => {
         )}
       </div>
 
-      {/* Node label */}
       <div className="text-xs font-bold text-slate-100 font-sans tracking-tight truncate max-w-[170px]">
         {name}
       </div>
 
-      {/* Stats bar */}
       <div className="mt-3">
-        <div className="flex justify-between text-[9px] font-mono text-slate-450 mb-1">
-          <span>DENSITY DATA</span>
+        <div className="flex justify-between text-[9px] font-mono text-slate-500 mb-1">
+          <span>DENSITY</span>
           <span className="font-semibold text-slate-200">{Math.round(currentDensity)}/{capacity}</span>
         </div>
         <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800/40">
@@ -280,6 +268,8 @@ const LiveMapInner: React.FC = () => {
     stats,
   } = useSimulation();
 
+  const [showLegend, setShowLegend] = useState(true);
+
   const getRiskLevel = useCallback((density: number, capacity: number) => {
     const r = density / capacity;
     if (r >= 0.9) return 'CRITICAL';
@@ -372,7 +362,7 @@ const LiveMapInner: React.FC = () => {
   const rLevel = stats.riskLevel || 'SAFE';
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-80px)] w-full">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] w-full">
       {/* React Flow Panel */}
       <div className="flex-1 h-full relative bg-[#090d16]">
         {/* Neon sci-fi ambient glow background overlay */}
@@ -389,8 +379,8 @@ const LiveMapInner: React.FC = () => {
           onNodeClick={(_, node) => setSelectedNodeId(node.id)}
           onPaneClick={() => setSelectedNodeId(null)}
           fitView
-          fitViewOptions={{ padding: 0.15 }}
-          minZoom={0.25}
+          fitViewOptions={{ padding: 0.35 }}
+          minZoom={0.1}
           maxZoom={2}
         >
           {/* Transparent grid overlay */}
@@ -413,30 +403,50 @@ const LiveMapInner: React.FC = () => {
         )}
 
         {/* Legend Overlay */}
-        <div className="absolute bottom-4 left-4 glass-panel border-slate-800/60 p-4 rounded-xl z-10 text-xs space-y-2 pointer-events-auto">
-          <div className="font-bold text-slate-200 uppercase tracking-wider text-[10px] font-mono mb-2">Node Density Levels</div>
-          {[
-            { color: 'bg-brand-green shadow-glow-green', label: 'Safe (<50%)' },
-            { color: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]', label: 'Moderate (50–70%)' },
-            { color: 'bg-brand-orange shadow-glow-orange', label: 'High (70–90%)' },
-            { color: 'bg-brand-red shadow-glow-red animate-pulse', label: 'Critical (≥90%)' },
-          ].map(({ color, label }) => (
-            <div key={label} className="flex items-center space-x-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
-              <span className="text-slate-400 font-mono">{label}</span>
+        {showLegend ? (
+          <div className="absolute bottom-4 left-4 glass-panel border-slate-800/60 p-4 rounded-xl z-10 text-xs space-y-2 pointer-events-auto">
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-bold text-slate-200 uppercase tracking-wider text-[10px] font-mono">Node Density Levels</div>
+              <button
+                onClick={() => setShowLegend(false)}
+                className="p-1 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800/60 transition-all -mr-1"
+                title="Close legend"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
-          ))}
-          <div className="border-t border-slate-800/50 pt-2 mt-2 space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-0.5 bg-brand-blue shadow-glow-blue" />
-              <span className="text-slate-400 font-mono">Active Route</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-0.5 bg-brand-red shadow-glow-red" />
-              <span className="text-slate-400 font-mono">Emergency Egress</span>
+            {[
+              { color: 'bg-brand-green shadow-glow-green', label: 'Safe (<50%)' },
+              { color: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]', label: 'Moderate (50–70%)' },
+              { color: 'bg-brand-orange shadow-glow-orange', label: 'High (70–90%)' },
+              { color: 'bg-brand-red shadow-glow-red animate-pulse', label: 'Critical (≥90%)' },
+            ].map(({ color, label }) => (
+              <div key={label} className="flex items-center space-x-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
+                <span className="text-slate-400 font-mono">{label}</span>
+              </div>
+            ))}
+            <div className="border-t border-slate-800/50 pt-2 mt-2 space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-0.5 bg-brand-blue shadow-glow-blue" />
+                <span className="text-slate-400 font-mono">Active Route</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-0.5 bg-brand-red shadow-glow-red" />
+                <span className="text-slate-400 font-mono">Emergency Egress</span>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <button
+            onClick={() => setShowLegend(true)}
+            className="absolute bottom-4 left-4 z-10 pointer-events-auto flex items-center gap-1.5 px-3 py-2 rounded-xl glass-panel border-slate-800/60 text-[10px] font-mono text-slate-400 hover:text-white hover:border-slate-600 transition-all"
+            title="Show legend"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            Legend
+          </button>
+        )}
       </div>
 
       {/* Side Drawer */}
